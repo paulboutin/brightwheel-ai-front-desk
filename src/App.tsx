@@ -97,6 +97,13 @@ export default function App() {
   const [view, setView] = useState<"parent" | "operator">("parent");
   const [tab, setTab] = useState<"inbox" | "policies">("inbox");
   const [question, setQuestion] = useState("");
+  const [chatOpen, setChatOpen] = useState(false);
+  const chatOpenRef = useRef(false);
+  const [unreadResponse, setUnreadResponse] = useState(false);
+  const [pendingReplyId, setPendingReplyId] = useState<string | null>(null);
+  const chatLauncher = useRef<HTMLButtonElement>(null);
+  const chatClose = useRef<HTMLButtonElement>(null);
+  const chatScroll = useRef<HTMLDivElement>(null);
   const [conversation, setConversation] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState("Finding the right policy…");
@@ -111,10 +118,12 @@ export default function App() {
   );
   const [filter, setFilter] = useState<"all" | "open">("open");
   const [search, setSearch] = useState("");
+  const [topicPicker, setTopicPicker] = useState(false);
+  const [history, setHistory] = useState(false);
+  const questionInput = useRef<HTMLTextAreaElement>(null);
   const [about, setAbout] = useState(false);
   const [reset, setReset] = useState(false);
   const [storageError, setStorageError] = useState(false);
-  const bottom = useRef<HTMLDivElement>(null);
   const published = state.policies.filter((p) => p.published);
   const needsReview = (e: Entry) => e.review === "open";
   const openCount = state.entries.filter(needsReview).length;
@@ -124,9 +133,29 @@ export default function App() {
     setStorageError(!saveState(state));
   }, [state]);
   useEffect(() => {
-    if (conversation.length || busy)
-      bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [conversation.length, busy]);
+    if (!chatOpen) return;
+    const scroller = chatScroll.current;
+    if (scroller)
+      scroller.scrollTop =
+        conversation.length > 1 || busy ? scroller.scrollHeight : 0;
+  }, [conversation, busy, chatOpen]);
+  useEffect(() => {
+    if (chatOpen) chatClose.current?.focus();
+  }, [chatOpen]);
+  function openChat() {
+    chatOpenRef.current = true;
+    setChatOpen(true);
+    setUnreadResponse(false);
+    if (pendingReplyId) {
+      setConversation([pendingReplyId]);
+      setPendingReplyId(null);
+    }
+  }
+  function closeChat() {
+    chatOpenRef.current = false;
+    setChatOpen(false);
+    chatLauncher.current?.focus();
+  }
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(""), 4500);
@@ -138,17 +167,20 @@ export default function App() {
       ...s,
       entries: s.entries.map((e) => (e.id === id ? { ...e, ...update } : e)),
     }));
-  function addAnswer(q: string, answer: Answer) {
+  function addAnswer(q: string, answer: Answer, replace = false) {
     const entry: Entry = {
       id: crypto.randomUUID(),
       question: redactQuestion(q),
       answer,
+      // Created by a submitted question or topic click, never during render.
+      // oxlint-disable-next-line react/purity
       createdAt: new Date().toISOString(),
       review: answer.status === "answered" ? "resolved" : "open",
       requested: false,
     };
     setState((s) => ({ ...s, entries: [entry, ...s.entries].slice(0, 200) }));
-    setConversation((c) => [...c, entry.id]);
+    setConversation((c) => (replace ? [entry.id] : [...c, entry.id]));
+    if (!chatOpenRef.current) setUnreadResponse(true);
   }
   async function ask(q: string) {
     q = q.trim();
@@ -193,7 +225,11 @@ export default function App() {
     setBusy(false);
   }
   function openPolicy(p: Policy) {
-    if (!busy) addAnswer(p.questions[0] || p.title, policyAnswer(p));
+    if (busy) return;
+    openChat();
+    setQuestion("");
+    setTopicPicker(false);
+    addAnswer(p.questions[0] || p.title, policyAnswer(p), true);
   }
   function newPolicy(entry?: Entry) {
     setPolicySourceEntryId(entry?.id ?? null);
@@ -231,6 +267,8 @@ export default function App() {
       return;
     setState(next);
     setReplying(null);
+    setUnreadResponse(true);
+    setPendingReplyId(replying.id);
     setToast("Email reply simulated and saved. No email was sent.");
     if (draftFaq) newPolicy(next.entries.find((e) => e.id === replying.id));
   }
@@ -314,7 +352,10 @@ export default function App() {
           </button>
           <button
             className={view === "operator" ? "active" : ""}
-            onClick={() => setView("operator")}
+            onClick={() => {
+              closeChat();
+              setView("operator");
+            }}
           >
             <Settings2 size={16} /> Staff workspace{" "}
             {openCount > 0 && <span className="count">{openCount}</span>}
@@ -446,281 +487,361 @@ export default function App() {
                 Grove’s own policies.
               </p>
             </section>
-            {!conversation.length && (
-              <>
-                <div className="topic-grid">
-                  {categories.map(({ label, icon, id }) => (
-                    <button
-                      key={id}
-                      onClick={() => {
-                        const p = published.find((p) => p.id === id);
-                        if (p) openPolicy(p);
-                        else
-                          setToast(
-                            "This policy is not currently published. Please ask the staff.",
-                          );
-                      }}
-                    >
-                      <span className={`topic-icon ${id}`}>
-                        <Icon icon={icon} />
-                      </span>
-                      <span>{label}</span>
-                      <ArrowUpRight size={16} />
-                    </button>
-                  ))}
-                </div>
-                <div className="try-question">
-                  <span>Or try asking</span>
-                  <button onClick={() => ask("Can we visit before enrolling?")}>
-                    “Can we visit before enrolling?” <ArrowRight size={14} />
-                  </button>
-                </div>
-              </>
-            )}
-            <div
-              className="conversation"
-              aria-live="polite"
-              aria-label="Your questions and answers"
-            >
-              {conversation
-                .map((id) => state.entries.find((e) => e.id === id))
-                .filter((e): e is Entry => !!e)
-                .map((entry) => (
-                  <div className="exchange" key={entry.id}>
-                    <div className="question-bubble">{entry.question}</div>
-                    <article className={`answer-card ${entry.answer.status}`}>
-                      <div className="answer-heading">
-                        <span className="small-spark">
-                          <Sparkles size={17} />
-                        </span>
-                        <strong>Little Grove front desk</strong>
-                        <span>
-                          {entry.answer.status === "answered"
-                            ? "From your center"
-                            : entry.answer.status === "related"
-                              ? "Related policy"
-                              : "Let’s get the right help"}
-                        </span>
-                      </div>
-                      {entry.answer.status === "related" && (
-                        <div className="related-note">
-                          <HelpCircle size={16} /> This policy may help. It may
-                          not cover every part of your question.
-                        </div>
-                      )}
-                      <p className="answer-text">{entry.answer.text}</p>
-                      {entry.answer.policy && (
-                        <button
-                          className="source-link"
-                          onClick={() => setSource(entry.answer.policy!)}
-                        >
-                          <BookOpen size={16} />
-                          <span>
-                            {entry.answer.policy.title}
-                            <small>
-                              Version {entry.answer.policy.version} · Updated{" "}
-                              {date(entry.answer.policy.updatedAt)}
-                            </small>
-                          </span>
-                          <ChevronRight size={16} />
-                        </button>
-                      )}
-                      <div className="answer-actions">
-                        <span>Did this help?</span>
-                        <button
-                          aria-label="Mark answer helpful"
-                          aria-pressed={entry.feedback === "helpful"}
-                          className={
-                            entry.feedback === "helpful" ? "selected" : ""
-                          }
-                          onClick={() =>
-                            updateEntry(entry.id, { feedback: "helpful" })
-                          }
-                        >
-                          <ThumbsUp size={15} />
-                        </button>
-                        <button
-                          aria-label="Mark answer not helpful"
-                          aria-pressed={entry.feedback === "unhelpful"}
-                          className={
-                            entry.feedback === "unhelpful" ? "selected" : ""
-                          }
-                          onClick={() => {
-                            updateEntry(entry.id, {
-                              feedback: "unhelpful",
-                              review: "open",
-                            });
-                            setToast("Flagged for staff review in this demo.");
-                          }}
-                        >
-                          <ThumbsDown size={15} />
-                        </button>
-                        {entry.answer.status !== "urgent" &&
-                          !hasHiddenQuestion(entry) &&
-                          !entry.emailFollowUp && (
-                            <button
-                              className="handoff"
-                              onClick={() => setRequesting(entry)}
-                            >
-                              <Mail size={14} /> Request an email reply
-                            </button>
-                          )}
-                      </div>
-                      {entry.emailFollowUp && (
-                        <div className="followup-receipt">
-                          <Mail size={18} />
-                          <div>
-                            <strong>
-                              {entry.emailFollowUp.status === "pending"
-                                ? "Email reply requested · demo"
-                                : "Email reply simulated"}
-                            </strong>
-                            <p>
-                              {entry.emailFollowUp.status === "pending"
-                                ? `Your request is saved for ${entry.emailFollowUp.email}. Staff replies are asynchronous; you don’t need to keep the chat open.`
-                                : `A demo reply for ${entry.emailFollowUp.email} was saved. No email was sent.`}
-                            </p>
-                            {entry.emailFollowUp.status === "pending" && (
-                              <>
-                                <small>
-                                  This demo is not monitored and does not send
-                                  email.
-                                </small>
-                                <button
-                                  className="text-link"
-                                  onClick={() => {
-                                    updateEntry(entry.id, {
-                                      ...cancelEmailReply(entry),
-                                      emailFollowUp: undefined,
-                                    });
-                                    setToast(
-                                      "Reply request canceled and email address removed.",
-                                    );
-                                  }}
-                                >
-                                  Cancel reply request
-                                </button>
-                              </>
-                            )}
-                            {entry.staffReplies?.map((reply) => (
-                              <blockquote key={reply.id}>
-                                <span className="eyebrow">
-                                  Simulated staff email ·{" "}
-                                  {date(reply.createdAt)}
-                                </span>
-                                <p>{reply.text}</p>
-                              </blockquote>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </article>
-                  </div>
-                ))}
+            <div className="home-chat-actions">
+              <button className="primary" onClick={openChat}>
+                <MessageCircle size={18} />
+                {unreadResponse
+                  ? "Read your response"
+                  : conversation.length
+                    ? "Continue your chat"
+                    : "Ask a question"}
+                <ArrowUpRight size={17} />
+              </button>
+              <p>
+                {unreadResponse
+                  ? "A response is ready in your front desk chat."
+                  : "Open the front desk anytime. Your chat stays here when you close it."}
+              </p>
             </div>
-            {busy && (
-              <div className="thinking" role="status">
-                <span className="pulse" />
-                <span>{loading}</span>
-              </div>
-            )}
-            <div ref={bottom} />
-            <form
-              className="composer"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void ask(question);
+            <div className="topic-grid home-topics">
+              {categories.map(({ label, icon, id }) => (
+                <button
+                  key={id}
+                  disabled={busy}
+                  onClick={() => {
+                    const policy = published.find((p) => p.id === id);
+                    if (policy) openPolicy(policy);
+                    else setToast("This policy is not currently published.");
+                  }}
+                >
+                  <span className={`topic-icon ${id}`}>
+                    <Icon icon={icon} />
+                  </span>
+                  <span>Browse {label}</span>
+                  <ArrowUpRight size={16} />
+                </button>
+              ))}
+            </div>
+            <button
+              className={`chat-launcher ${unreadResponse ? "has-response" : ""}`}
+              ref={chatLauncher}
+              onClick={chatOpen ? closeChat : openChat}
+              aria-expanded={chatOpen}
+              aria-controls="front-desk-chat"
+              aria-live="polite"
+            >
+              <MessageCircle size={21} />
+              <span>
+                {unreadResponse
+                  ? "Response ready"
+                  : busy
+                    ? "Finding your answer…"
+                    : "Little Grove chat"}
+              </span>
+              {unreadResponse && <span className="unread-dot" />}
+            </button>
+            <section
+              id="front-desk-chat"
+              className="chat-panel"
+              hidden={!chatOpen}
+              aria-label="Front desk chat"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.stopPropagation();
+                  closeChat();
+                }
               }}
             >
-              <label className="sr-only" htmlFor="question">
-                Ask a question about Little Grove
-              </label>
-              <textarea
-                id="question"
-                rows={2}
-                maxLength={500}
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                placeholder="What would you like to know?"
-                disabled={busy}
-                onKeyDown={(e) => {
-                  if (
-                    e.key === "Enter" &&
-                    !e.shiftKey &&
-                    !e.nativeEvent.isComposing
-                  ) {
-                    e.preventDefault();
-                    void ask(question);
-                  }
-                }}
-              />
-              <div className="composer-bottom">
-                <span>
-                  <ShieldCheck size={14} /> Please leave out names and personal
-                  details.
-                </span>
+              <header className="chat-panel-header">
+                <div>
+                  <strong>
+                    <Sparkles size={18} /> Little Grove front desk
+                  </strong>
+                  <small>
+                    {busy
+                      ? "Finding your answer…"
+                      : "Center policies, with people here to help"}
+                  </small>
+                </div>
                 <button
-                  type="submit"
-                  disabled={busy || !question.trim()}
-                  aria-label="Send question"
+                  ref={chatClose}
+                  onClick={closeChat}
+                  aria-label="Close chat"
                 >
-                  <ArrowUp size={21} />
+                  <X size={21} />
                 </button>
-              </div>
-            </form>
-            <div className="composer-meta">
-              <span>
-                <Sparkles size={12} />
-                {aiMode}
-              </span>
-              <span>Answers grounded in staff-published policies</span>
-            </div>
-            {!!conversation.length && (
-              <div className="after-chat">
-                <button
-                  className="text-link"
-                  onClick={() => setConversation([])}
-                >
-                  <Plus size={15} /> Start a fresh conversation
-                </button>
-                <details>
-                  <summary>
-                    Browse all policies <ChevronDown size={14} />
-                  </summary>
-                  <div className="policy-chips">
-                    {published.map((p) => (
-                      <button key={p.id} onClick={() => openPolicy(p)}>
-                        {p.title}
+              </header>
+              <div className="chat-scroll" ref={chatScroll}>
+                <nav className="topic-navigation" aria-label="Chat navigation">
+                  <div className="topic-navigation-heading">
+                    <button
+                      className="all-topics"
+                      disabled={busy}
+                      onClick={() => setTopicPicker(true)}
+                    >
+                      <BookOpen size={15} /> All topics{" "}
+                      <ChevronDown size={14} />
+                    </button>
+                    <div>
+                      <button disabled={busy} onClick={() => setHistory(true)}>
+                        <Clock3 size={15} /> History
+                      </button>
+                      <button
+                        disabled={busy}
+                        onClick={() => {
+                          setConversation([]);
+                          setQuestion("");
+                          questionInput.current?.focus();
+                        }}
+                      >
+                        <Plus size={15} /> New question
+                      </button>
+                    </div>
+                  </div>
+                  <div className="topic-grid">
+                    {categories.map(({ label, icon, id }) => (
+                      <button
+                        key={id}
+                        disabled={busy}
+                        aria-pressed={
+                          conversation.length === 1 &&
+                          state.entries.find((e) => e.id === conversation[0])
+                            ?.answer.policy?.id === id
+                        }
+                        onClick={() => {
+                          const p = published.find((p) => p.id === id);
+                          if (p) openPolicy(p);
+                          else
+                            setToast(
+                              "This policy is not currently published. Please ask the staff.",
+                            );
+                        }}
+                      >
+                        <span className={`topic-icon ${id}`}>
+                          <Icon icon={icon} />
+                        </span>
+                        <span>{label}</span>
+                        <ArrowUpRight size={16} />
                       </button>
                     ))}
                   </div>
-                </details>
-              </div>
-            )}
-            {state.entries.some((e) => !e.sample) && (
-              <details className="saved-questions">
-                <summary>
-                  Your saved questions <ChevronDown size={14} />
-                </summary>
-                <p>Saved on this browser, including reply requests.</p>
-                {state.entries
-                  .filter((e) => !e.sample)
-                  .map((entry) => (
+                </nav>
+                {!conversation.length && !busy && (
+                  <div className="try-question">
+                    <span>Or try asking</span>
                     <button
-                      key={entry.id}
-                      onClick={() =>
-                        setConversation((c) =>
-                          c.includes(entry.id) ? c : [...c, entry.id],
-                        )
-                      }
+                      onClick={() => ask("Can we visit before enrolling?")}
                     >
-                      <span>{entry.question}</span>
-                      <small>{statusLabel(entry)}</small>
-                      <ChevronRight size={16} />
+                      “Can we visit before enrolling?” <ArrowRight size={14} />
                     </button>
-                  ))}
-              </details>
-            )}
+                  </div>
+                )}
+                <div
+                  className="conversation"
+                  aria-live="polite"
+                  aria-label="Your questions and answers"
+                >
+                  {conversation
+                    .map((id) => state.entries.find((e) => e.id === id))
+                    .filter((e): e is Entry => !!e)
+                    .map((entry) => (
+                      <div className="exchange" key={entry.id}>
+                        <div className="question-bubble">{entry.question}</div>
+                        <article
+                          className={`answer-card ${entry.answer.status}`}
+                        >
+                          <div className="answer-heading">
+                            <span className="small-spark">
+                              <Sparkles size={17} />
+                            </span>
+                            <strong>Little Grove front desk</strong>
+                            <span>
+                              {entry.answer.status === "answered"
+                                ? "From your center"
+                                : entry.answer.status === "related"
+                                  ? "Related policy"
+                                  : "Let’s get the right help"}
+                            </span>
+                          </div>
+                          {entry.answer.status === "related" && (
+                            <div className="related-note">
+                              <HelpCircle size={16} /> This policy may help. It
+                              may not cover every part of your question.
+                            </div>
+                          )}
+                          <p className="answer-text">{entry.answer.text}</p>
+                          {entry.answer.policy && (
+                            <button
+                              className="source-link"
+                              onClick={() => setSource(entry.answer.policy!)}
+                            >
+                              <BookOpen size={16} />
+                              <span>
+                                {entry.answer.policy.title}
+                                <small>
+                                  Version {entry.answer.policy.version} ·
+                                  Updated {date(entry.answer.policy.updatedAt)}
+                                </small>
+                              </span>
+                              <ChevronRight size={16} />
+                            </button>
+                          )}
+                          <div className="answer-actions">
+                            <span>Did this help?</span>
+                            <button
+                              aria-label="Mark answer helpful"
+                              aria-pressed={entry.feedback === "helpful"}
+                              className={
+                                entry.feedback === "helpful" ? "selected" : ""
+                              }
+                              onClick={() =>
+                                updateEntry(entry.id, { feedback: "helpful" })
+                              }
+                            >
+                              <ThumbsUp size={15} />
+                            </button>
+                            <button
+                              aria-label="Mark answer not helpful"
+                              aria-pressed={entry.feedback === "unhelpful"}
+                              className={
+                                entry.feedback === "unhelpful" ? "selected" : ""
+                              }
+                              onClick={() => {
+                                updateEntry(entry.id, {
+                                  feedback: "unhelpful",
+                                  review: "open",
+                                });
+                                setToast(
+                                  "Flagged for staff review in this demo.",
+                                );
+                              }}
+                            >
+                              <ThumbsDown size={15} />
+                            </button>
+                            {entry.answer.status !== "urgent" &&
+                              !hasHiddenQuestion(entry) &&
+                              !entry.emailFollowUp && (
+                                <button
+                                  className="handoff"
+                                  onClick={() => setRequesting(entry)}
+                                >
+                                  <Mail size={14} /> Request an email reply
+                                </button>
+                              )}
+                          </div>
+                          {entry.emailFollowUp && (
+                            <div className="followup-receipt">
+                              <Mail size={18} />
+                              <div>
+                                <strong>
+                                  {entry.emailFollowUp.status === "pending"
+                                    ? "Email reply requested · demo"
+                                    : "Email reply simulated"}
+                                </strong>
+                                <p>
+                                  {entry.emailFollowUp.status === "pending"
+                                    ? `Your request is saved for ${entry.emailFollowUp.email}. Staff replies are asynchronous; you don’t need to keep the chat open.`
+                                    : `A demo reply for ${entry.emailFollowUp.email} was saved. No email was sent.`}
+                                </p>
+                                {entry.emailFollowUp.status === "pending" && (
+                                  <>
+                                    <small>
+                                      This demo is not monitored and does not
+                                      send email.
+                                    </small>
+                                    <button
+                                      className="text-link"
+                                      onClick={() => {
+                                        updateEntry(entry.id, {
+                                          ...cancelEmailReply(entry),
+                                          emailFollowUp: undefined,
+                                        });
+                                        setToast(
+                                          "Reply request canceled and email address removed.",
+                                        );
+                                      }}
+                                    >
+                                      Cancel reply request
+                                    </button>
+                                  </>
+                                )}
+                                {entry.staffReplies?.map((reply) => (
+                                  <blockquote key={reply.id}>
+                                    <span className="eyebrow">
+                                      Simulated staff email ·{" "}
+                                      {date(reply.createdAt)}
+                                    </span>
+                                    <p>{reply.text}</p>
+                                  </blockquote>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </article>
+                      </div>
+                    ))}
+                </div>
+                {busy && (
+                  <div className="thinking" role="status">
+                    <span className="pulse" />
+                    <span>{loading}</span>
+                  </div>
+                )}
+              </div>
+              <div className="chat-composer">
+                <form
+                  className="composer"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void ask(question);
+                  }}
+                >
+                  <label className="sr-only" htmlFor="question">
+                    Ask a question about Little Grove
+                  </label>
+                  <textarea
+                    id="question"
+                    ref={questionInput}
+                    rows={2}
+                    maxLength={500}
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    placeholder="What would you like to know?"
+                    disabled={busy}
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === "Enter" &&
+                        !e.shiftKey &&
+                        !e.nativeEvent.isComposing
+                      ) {
+                        e.preventDefault();
+                        void ask(question);
+                      }
+                    }}
+                  />
+                  <div className="composer-bottom">
+                    <span>
+                      <ShieldCheck size={14} /> Please leave out names and
+                      personal details.
+                    </span>
+                    <button
+                      type="submit"
+                      disabled={busy || !question.trim()}
+                      aria-label="Send question"
+                    >
+                      <ArrowUp size={21} />
+                    </button>
+                  </div>
+                </form>
+                <div className="composer-meta">
+                  <span>
+                    <Sparkles size={12} />
+                    {aiMode}
+                  </span>
+                  <span>Staff-published policies</span>
+                </div>
+              </div>
+            </section>
           </main>
         </div>
       ) : (
@@ -976,6 +1097,8 @@ export default function App() {
                             disabled={hasHiddenQuestion(entry)}
                             onClick={() => {
                               setView("parent");
+                              openChat();
+                              setConversation([]);
                               void ask(entry.question);
                             }}
                           >
@@ -1091,6 +1214,64 @@ export default function App() {
             <X size={15} />
           </button>
         </div>
+      )}
+      {topicPicker && (
+        <Modal title="Choose a new topic" close={() => setTopicPicker(false)}>
+          <p className="navigation-note">
+            Open a topic to start fresh. Earlier questions and reply requests
+            stay in History.
+          </p>
+          <div className="topic-picker-list">
+            {published.map((p) => (
+              <button key={p.id} onClick={() => openPolicy(p)}>
+                <span>
+                  <strong>{p.title}</strong>
+                  <small>{p.category}</small>
+                </span>
+                <ChevronRight size={18} />
+              </button>
+            ))}
+          </div>
+          {!published.length && (
+            <p>No topics are published yet. Please contact the center.</p>
+          )}
+        </Modal>
+      )}
+      {history && (
+        <Modal title="Your saved questions" close={() => setHistory(false)}>
+          <p className="navigation-note">
+            Saved in this browser, including email reply requests. Open one
+            question at a time.
+          </p>
+          <div className="topic-picker-list">
+            {state.entries
+              .filter((e) => !e.sample)
+              .map((entry) => (
+                <button
+                  key={entry.id}
+                  onClick={() => {
+                    setConversation([entry.id]);
+                    setQuestion("");
+                    setHistory(false);
+                  }}
+                >
+                  <span>
+                    <strong>{entry.question}</strong>
+                    <small>
+                      {date(entry.createdAt)} · {statusLabel(entry)}
+                    </small>
+                  </span>
+                  <ChevronRight size={18} />
+                </button>
+              ))}
+          </div>
+          {!state.entries.some((e) => !e.sample) && (
+            <p>
+              No saved questions yet. Ask a question or choose a topic to get
+              started.
+            </p>
+          )}
+        </Modal>
       )}
       {source && (
         <Modal
@@ -1215,6 +1396,8 @@ export default function App() {
               onClick={() => {
                 setState(seedState());
                 setConversation([]);
+                setUnreadResponse(false);
+                setPendingReplyId(null);
                 setReset(false);
                 setToast("Demo reset to its original sample data.");
               }}

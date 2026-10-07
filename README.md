@@ -6,7 +6,7 @@ A mobile-friendly prototype for a fictional childcare center, built for the brig
 
 ## Try the complete loop
 
-1. In **For parents**, select **Hours & drop-off**. Open the citation to inspect the policy version.
+1. In **For parents**, select **Browse Hours & drop-off** to open the chat panel. Open the citation to inspect the policy version.
 2. Ask **“Do I need to put together a packed lunch each morning?”** to exercise real local AI retrieval. The first model download takes longer; later searches reuse it.
 3. Ask **“Are you open during winter break?”**. No holiday policy is published, so the system abstains. Choose **Request an email reply**, enter `parent@example.com`, and explicitly opt in. This is asynchronous and clearly simulated; no email is sent.
 4. Switch to **Staff workspace**, expand that question, and choose **Reply by email**. Write a fictional response and choose **Simulate reply & draft FAQ**. Review the prefilled answer for all families, add a title, and explicitly approve it for publication. Private replies alone never become AI knowledge.
@@ -14,6 +14,8 @@ A mobile-friendly prototype for a fictional childcare center, built for the brig
 6. Try **“My child has a fever, can she attend?”** or **“My child cannot breathe”** to inspect private/urgent handling. Staff can see the question wording. Emergency guidance does not offer asynchronous email as a substitute for immediate help.
 
 Try the reported regression: **“If my child needs assistance with eating lunch can I count on someone being there for her?”** It remains visible as a knowledge gap until staff publish suitable guidance; ordinary eating assistance is no longer treated as a health decision. Older questions whose wording was discarded cannot be recovered.
+
+The front desk opens in an in-page panel. Close it to browse the center and reopen it to continue; a **Response ready** badge appears if an AI answer finishes while closed or a simulated staff reply is saved. Topic shortcuts and **All topics** start a fresh conversation. **History** opens earlier questions individually, including reply requests. **New question** clears only the current view.
 
 Every reviewer gets their own browser-local sandbox. Three entries are explicitly labeled sample data. Reset restores the original seven policies and three questions. The staff switch is a demo perspective, **not authentication**. No real messages or emergency alerts are sent.
 
