@@ -71,3 +71,24 @@ it("persists email consent, simulated replies, and FAQ links without altering ol
   saveState(data);
   expect(loadState()).toEqual(data);
 });
+it("adds the two new demo policies to an existing workspace without changing edits", () => {
+  const old = seedState();
+  old.policies = old.policies.filter(
+    (p) => !["emergency-procedures", "medication-policy"].includes(p.id),
+  );
+  old.policies[0].answer = "Staff's custom opening hours.";
+  saveState(old);
+  const migrated = loadState();
+  expect(migrated.policies).toHaveLength(old.policies.length + 2);
+  expect(migrated.policies[0].answer).toBe(old.policies[0].answer);
+  expect(migrated.entries).toEqual(old.entries);
+  const medication = migrated.policies.find(
+    (p) => p.id === "medication-policy",
+  )!;
+  medication.answer = "Staff's custom medication policy.";
+  medication.published = false;
+  saveState(migrated);
+  expect(loadState().policies.find((p) => p.id === medication.id)).toEqual(
+    medication,
+  );
+});

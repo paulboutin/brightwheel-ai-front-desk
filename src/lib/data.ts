@@ -139,6 +139,54 @@ export const initialPolicies: Policy[] = [
       "start date",
     ],
   },
+  {
+    ...base,
+    id: "emergency-procedures",
+    title: "Emergency procedures & family updates",
+    category: "Health & safety",
+    answer:
+      "Little Grove’s fictional emergency plan covers evacuation, shelter-in-place, and family reunification. Staff account for children, contact emergency services when needed, and notify authorized guardians through the parent portal and emergency contact numbers on file. Families receive pickup instructions from staff; please do not arrive at an evacuation location until directed. Keep emergency contacts current in your parent portal. For an emergency happening now, call local emergency services rather than waiting for a chat reply.",
+    questions: [
+      "What is your emergency procedure?",
+      "What are your emergency procedures?",
+      "How does the center handle emergencies?",
+      "How are parents notified in an emergency?",
+      "What happens during an evacuation?",
+      "What is your emergency plan?",
+    ],
+    keywords: [
+      "emergency",
+      "evacuat",
+      "shelter",
+      "reunification",
+      "emergency contact",
+      "notify parents",
+    ],
+  },
+  {
+    ...base,
+    id: "medication-policy",
+    title: "Medication administration",
+    category: "Health & safety",
+    answer:
+      "At fictional Little Grove, designated trained staff may administer medication only after the director has reviewed the required written parent authorization and healthcare-provider instructions. Medication must arrive in its original labeled container and be handed directly to staff; it must not be left in a child’s bag. Staff store it securely and document administration. Send a request about your enrolled child through the authenticated parent portal so staff can review the individual plan. This public front desk cannot approve medication, select a dose, or change a care plan.",
+    questions: [
+      "Does the center administer medication?",
+      "Do you give children medication?",
+      "What is your medication policy?",
+      "What paperwork is needed for medication?",
+      "How should medicine be dropped off?",
+      "How do staff store medication?",
+    ],
+    keywords: [
+      "medication",
+      "medicine",
+      "administer",
+      "authorization",
+      "prescription",
+      "medical form",
+    ],
+  },
 ];
 export function seedState(): State {
   return {

@@ -31,7 +31,8 @@ export default function EmailRequest({
         <p>
           Staff can review your question and reply by email when available. You
           won’t need to keep the chat open. This is not an instant response or
-          an emergency contact.
+          an emergency contact. For a question about your enrolled child, use
+          your center’s authenticated parent portal instead of this public form.
         </p>
         <div className="muted-note">
           Demo only: this saves a request in this browser. No center is notified

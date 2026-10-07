@@ -4,6 +4,7 @@ import {
   directAnswer,
   keywordCandidates,
   policyAnswer,
+  publicQuestion,
   redactQuestion,
   safetyAnswer,
   unknownAnswer,
@@ -135,5 +136,64 @@ it.each([
 it("still routes feeding-tube care to a person", () => {
   expect(
     safetyAnswer("My child uses a feeding tube. Can you help?")?.status,
+  ).toBe("sensitive");
+});
+
+it.each([
+  ["What is your emergency procedure?", "emergency-procedures"],
+  ["What are your emergency procedures?", "emergency-procedures"],
+  ["How are parents notified in an emergency?", "emergency-procedures"],
+  ["Does the center administer medication?", "medication-policy"],
+  ["What is your medication policy?", "medication-policy"],
+])("answers a general safety policy question: %s", (question, policyId) => {
+  expect(safetyAnswer(question)).toBeUndefined();
+  expect(directAnswer(question, initialPolicies)?.policy?.id).toBe(policyId);
+});
+it.each([
+  "What is your emergency procedure? My child cannot breathe.",
+  "My son is choking. What is your emergency plan?",
+  "This is an emergency, what is your policy?",
+])("does not let a policy question hide immediate danger: %s", (question) => {
+  expect(directAnswer(question, initialPolicies)?.status).toBe("urgent");
+});
+
+it.each([
+  "Did Emma eat lunch today?",
+  "Emma has a fever, can she come in?",
+  "My daughter Olivia needs medication today.",
+  "Did my child sleep today?",
+  "My toddler is throwing up. Can I bring him?",
+])(
+  "routes individual care questions to the portal, with or without a name: %s",
+  (question) => {
+    const answer = safetyAnswer(question)!;
+    expect(answer?.status).toBe("sensitive");
+    expect(publicQuestion(question, answer)).toBe(
+      "Personal question — continue in the parent portal",
+    );
+    expect(answer.text).toContain("No message has been forwarded");
+  },
+);
+it("does not retain the personal wording of a newly recognized urgent question", () => {
+  const question = "Emma cannot breathe";
+  expect(publicQuestion(question, safetyAnswer(question)!)).toBe(
+    "Urgent guidance shown — personal details not saved",
+  );
+});
+it("keeps a general question available for staff improvement", () => {
+  const question =
+    "If my child needs assistance with eating lunch can I count on someone being there for her?";
+  expect(publicQuestion(question, unknownAnswer())).toBe(question);
+});
+
+it.each(["My child choking", "Someone unconscious"])(
+  "recognizes terse danger reports: %s",
+  (question) => {
+    expect(safetyAnswer(question)?.status).toBe("urgent");
+  },
+);
+it("routes an injury involving an unnamed child to the portal", () => {
+  expect(
+    safetyAnswer("My child was injured today. What happened?")?.status,
   ).toBe("sensitive");
 });

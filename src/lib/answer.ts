@@ -3,14 +3,20 @@ export const normalize = (text: string) =>
   text.toLowerCase().normalize("NFKC").replace(/[’]/g, "'").trim();
 export function safetyAnswer(question: string): Answer | undefined {
   const q = normalize(question);
+  // Recognize reports of immediate danger, not the word "emergency" alone.
+  // A general policy clause never cancels an explicit report of danger.
   if (
-    /can't breathe|cannot breathe|not breathing|choking|unconscious|unresponsive|seizure|immediate danger|emergency|trouble breathing/.test(
+    /\b(can't breathe|cannot breathe|not breathing|trouble breathing|is choking|is unconscious|is unresponsive|having a seizure|immediate danger|this is an emergency|emergency (right )?now)\b/.test(
       q,
-    )
+    ) ||
+    /^(help[!, ]*)?emergency[!. ]*$/.test(q) ||
+    (/\b(choking|unconscious|unresponsive|seizure)\b/.test(q) &&
+      (!/\b(policy|procedures?|training|plan|protocol|drills?)\b/.test(q) ||
+        /\bmy (child|son|daughter|baby|toddler)\b/.test(q)))
   )
     return {
       status: "urgent",
-      text: "If someone is in immediate danger, call your local emergency number now (911 in the US). Do not wait for a reply here. This demo does not contact emergency services or monitor messages.",
+      text: "If someone is in immediate danger, call your local emergency number now (911 in the US). Do not wait for a teacher, portal message, or email reply. This public demo does not contact emergency services or monitor messages.",
       reason: "Possible emergency",
       engine: "safety",
     };
@@ -25,32 +31,54 @@ export function safetyAnswer(question: string): Answer | undefined {
       reason: "Unsupported instruction",
       engine: "safety",
     };
-  if (
-    /\b(custody|court order|restraining|abuse|neglect|incident|injur\w*|diagnos\w*|dose|dosage|medicat\w*|tylenol|ibuprofen|medical advice|rash|feeding tube|dysphagia|my (balance|bill|account)|owe|refund|credit card|social security|ssn|password|another (child|parent)|other (child|parent)|phone number of|address of)\b/.test(
-      q,
-    )
-  )
-    return {
-      status: "sensitive",
-      text: "This needs a private conversation with the front office. I can’t access family records, give medical or legal advice, or make a decision about an individual child. Please use your usual private contact with the center. Personal details are not needed here.",
-      reason: "Private or individual decision",
-      engine: "safety",
-    };
-  if (
-    /\b(sick|ill|fever|vomit\w*|diarrhea|temperature|allerg\w*|symptoms?|contagious)\b/.test(
+  // These are routing hints, not identity verification or comprehensive name detection.
+  const namedChild =
+    /\b(?:my (?:child|son|daughter|baby|toddler)(?: is named| named|,)?|(?:Did|Has|Is|Was|Can|Could|Will))\s+[A-Z][\p{L}'’-]+(?:\s|,)/u.test(
+      question,
+    ) ||
+    /\b[A-Z][\p{L}'’-]+ (?:has|needs|takes|is feeling|was hurt|ate|didn't eat|can't|cannot)\b/u.test(
+      question,
+    );
+  const individualHealth =
+    /\b(injur\w*|hurt|sick|ill|fever|vomit\w*|throwing up|diarrhea|temperature|allerg\w*|symptoms?|contagious|rash|medicat\w*|prescription|feeding tube|dysphagia)\b/.test(
       q,
     ) &&
-    /\b(my (child|son|daughter|baby)|she|he|is it safe)\b|can (i|we).*(bring|send)/.test(
+    (/\b(my (child|son|daughter|baby|toddler)|she|he|his|her)\b|can (i|we).*(bring|send)/.test(
       q,
-    )
-  )
+    ) ||
+      namedChild ||
+      /\b(has|have) (a )?(fever|rash)|throwing up/.test(q));
+  const clinicalDecision =
+    /\b(dose|dosage|medical advice|diagnos\w*)\b|how much.*(tylenol|ibuprofen|medicine|medication)|should (i|we).*(give|treat)/.test(
+      q,
+    );
+  const personalRecord =
+    /\b(custody|court order|restraining|abuse|neglect|my (balance|bill|account)|owe|refund|credit card|social security|ssn|password|another (child|parent)|other (child|parent)|phone number of|address of)\b/.test(
+      q,
+    ) ||
+    /\b(did|has|is|was) my (child|son|daughter|baby|toddler)\b|\b(how is|what did) my (child|son|daughter|baby|toddler)\b/.test(
+      q,
+    );
+  if (namedChild || individualHealth || clinicalDecision || personalRecord)
     return {
       status: "sensitive",
-      text: "Staff need to review your child’s situation directly. I can show the general attendance or meals policy, but I can’t say whether an individual child is safe to attend or eat a particular food. Contact the center and a healthcare professional for medical guidance.",
-      reason: "Individual health question",
+      text: "This public front desk answers general center-policy questions. For a question about your enrolled child, sign in to your center’s existing parent portal and message the teacher or office. Sign in and select your child so the teacher has the right context. No message has been forwarded from this demo. Please don’t enter names, health details, or family records here. For medical decisions, contact an appropriate healthcare professional.",
+      reason: "Use authenticated parent portal",
       engine: "safety",
     };
 }
+export const isPrivateRoute = (answer: Answer) =>
+  ["sensitive", "urgent"].includes(answer.status);
+export function publicQuestion(question: string, answer: Answer): string {
+  // The public demo cannot offer secure delivery to teachers. Keep only routing
+  // metadata here; personal context belongs in the family's authenticated portal.
+  if (isPrivateRoute(answer))
+    return answer.status === "urgent"
+      ? "Urgent guidance shown — personal details not saved"
+      : "Personal question — continue in the parent portal";
+  return redactQuestion(question);
+}
+
 export function policyAnswer(
   policy: Policy,
   engine: Answer["engine"] = "policy",
@@ -111,7 +139,7 @@ export function keywordCandidates(
 export function unknownAnswer(): Answer {
   return {
     status: "unanswered",
-    text: "I don’t have a published answer for that yet. I’d rather leave it with the front office than guess. You can request an email reply from staff when they’re available, or browse the center’s policies below. Email delivery is simulated in this demo.",
+    text: "I don’t have a published answer for that yet. I’d rather leave it with the front office than guess. You can request an email reply from staff when they’re available, or choose another topic above. For questions about your enrolled child, use your center’s authenticated parent portal. Email delivery is simulated in this demo.",
     reason: "No sufficiently relevant published policy",
     engine: "policy",
   };

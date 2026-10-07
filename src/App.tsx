@@ -36,7 +36,8 @@ import {
   directAnswer,
   keywordCandidates,
   policyAnswer,
-  redactQuestion,
+  publicQuestion,
+  isPrivateRoute,
   unknownAnswer,
 } from "./lib/answer";
 import { loadState, saveState } from "./lib/storage";
@@ -66,23 +67,27 @@ const date = (value: string) =>
     day: "numeric",
   });
 const statusLabel = (entry: Entry) =>
-  entry.emailFollowUp?.status === "pending"
-    ? "Email reply requested"
-    : entry.emailFollowUp?.status === "simulated"
-      ? "Email reply simulated"
-      : entry.answer.status === "urgent"
-        ? "Urgent guidance"
-        : entry.answer.status === "sensitive"
-          ? "Private conversation"
-          : entry.feedback === "unhelpful"
-            ? "Not helpful"
-            : entry.requested
-              ? "Staff requested"
-              : entry.answer.status === "answered"
-                ? "Policy shared"
-                : entry.answer.status === "related"
-                  ? "Related policy"
-                  : "Knowledge gap";
+  entry.privacyRedirect
+    ? entry.answer.status === "urgent"
+      ? "Urgent guidance shown"
+      : "Portal guidance shown"
+    : entry.emailFollowUp?.status === "pending"
+      ? "Email reply requested"
+      : entry.emailFollowUp?.status === "simulated"
+        ? "Email reply simulated"
+        : entry.answer.status === "urgent"
+          ? "Urgent guidance"
+          : entry.answer.status === "sensitive"
+            ? "Private conversation"
+            : entry.feedback === "unhelpful"
+              ? "Not helpful"
+              : entry.requested
+                ? "Staff requested"
+                : entry.answer.status === "answered"
+                  ? "Policy shared"
+                  : entry.answer.status === "related"
+                    ? "Related policy"
+                    : "Knowledge gap";
 function Icon({
   icon: IconType,
   size = 20,
@@ -121,6 +126,7 @@ export default function App() {
   const [topicPicker, setTopicPicker] = useState(false);
   const [history, setHistory] = useState(false);
   const questionInput = useRef<HTMLTextAreaElement>(null);
+  const [portalHelp, setPortalHelp] = useState(false);
   const [about, setAbout] = useState(false);
   const [reset, setReset] = useState(false);
   const [storageError, setStorageError] = useState(false);
@@ -170,12 +176,16 @@ export default function App() {
   function addAnswer(q: string, answer: Answer, replace = false) {
     const entry: Entry = {
       id: crypto.randomUUID(),
-      question: redactQuestion(q),
+      question: publicQuestion(q, answer),
+      privacyRedirect: isPrivateRoute(answer),
       answer,
       // Created by a submitted question or topic click, never during render.
       // oxlint-disable-next-line react/purity
       createdAt: new Date().toISOString(),
-      review: answer.status === "answered" ? "resolved" : "open",
+      review:
+        answer.status === "answered" || isPrivateRoute(answer)
+          ? "resolved"
+          : "open",
       requested: false,
     };
     setState((s) => ({ ...s, entries: [entry, ...s.entries].slice(0, 200) }));
@@ -321,7 +331,7 @@ export default function App() {
           <span className="demo-dot" /> A little demo, a big help.
         </span>
         <span>
-          Fictional center · Data stays in this browser{" "}
+          Public front desk demo · Data stays in this browser{" "}
           <button onClick={() => setAbout(true)}>
             About this prototype <ArrowUpRight size={13} />
           </button>
@@ -450,11 +460,12 @@ export default function App() {
               </div>
               <h3>Some things need a person.</h3>
               <p>
-                Your center’s team is the right place for personal questions or
-                special arrangements.
+                Already enrolled? Use your center’s authenticated parent portal
+                for questions about your child. This public front desk is for
+                general policies.
               </p>
-              <button onClick={() => setAbout(true)}>
-                How to reach the team <ArrowRight size={15} />
+              <button onClick={() => setPortalHelp(true)}>
+                For enrolled families <ArrowRight size={15} />
               </button>
             </div>
             <div className="sidebar-footer">
@@ -465,7 +476,8 @@ export default function App() {
           <main className="parent-main" id="main-content">
             <div className="desk-status">
               <span>
-                <span className="online-dot" /> Your center’s AI front desk
+                <span className="online-dot" /> Your center’s public AI front
+                desk
               </span>
               <button onClick={() => setAbout(true)}>
                 <ShieldCheck size={14} /> How answers work
@@ -560,7 +572,7 @@ export default function App() {
                   <small>
                     {busy
                       ? "Finding your answer…"
-                      : "Center policies, with people here to help"}
+                      : "Public policies · Personal questions belong in your portal"}
                   </small>
                 </div>
                 <button
@@ -686,49 +698,69 @@ export default function App() {
                               <ChevronRight size={16} />
                             </button>
                           )}
-                          <div className="answer-actions">
-                            <span>Did this help?</span>
-                            <button
-                              aria-label="Mark answer helpful"
-                              aria-pressed={entry.feedback === "helpful"}
-                              className={
-                                entry.feedback === "helpful" ? "selected" : ""
-                              }
-                              onClick={() =>
-                                updateEntry(entry.id, { feedback: "helpful" })
-                              }
-                            >
-                              <ThumbsUp size={15} />
-                            </button>
-                            <button
-                              aria-label="Mark answer not helpful"
-                              aria-pressed={entry.feedback === "unhelpful"}
-                              className={
-                                entry.feedback === "unhelpful" ? "selected" : ""
-                              }
-                              onClick={() => {
-                                updateEntry(entry.id, {
-                                  feedback: "unhelpful",
-                                  review: "open",
-                                });
-                                setToast(
-                                  "Flagged for staff review in this demo.",
-                                );
-                              }}
-                            >
-                              <ThumbsDown size={15} />
-                            </button>
-                            {entry.answer.status !== "urgent" &&
-                              !hasHiddenQuestion(entry) &&
-                              !entry.emailFollowUp && (
-                                <button
-                                  className="handoff"
-                                  onClick={() => setRequesting(entry)}
-                                >
-                                  <Mail size={14} /> Request an email reply
-                                </button>
-                              )}
-                          </div>
+                          {entry.answer.status === "sensitive" && (
+                            <div className="portal-route">
+                              <p>
+                                Use the center’s existing parent portal to reach
+                                your child’s teacher. No message was forwarded
+                                from this demo.
+                              </p>
+                              <button
+                                className="secondary"
+                                onClick={() => setPortalHelp(true)}
+                              >
+                                <ShieldCheck size={16} /> How to contact your
+                                teacher
+                              </button>
+                            </div>
+                          )}
+                          {!isPrivateRoute(entry.answer) && (
+                            <div className="answer-actions">
+                              <span>Did this help?</span>
+                              <button
+                                aria-label="Mark answer helpful"
+                                aria-pressed={entry.feedback === "helpful"}
+                                className={
+                                  entry.feedback === "helpful" ? "selected" : ""
+                                }
+                                onClick={() =>
+                                  updateEntry(entry.id, { feedback: "helpful" })
+                                }
+                              >
+                                <ThumbsUp size={15} />
+                              </button>
+                              <button
+                                aria-label="Mark answer not helpful"
+                                aria-pressed={entry.feedback === "unhelpful"}
+                                className={
+                                  entry.feedback === "unhelpful"
+                                    ? "selected"
+                                    : ""
+                                }
+                                onClick={() => {
+                                  updateEntry(entry.id, {
+                                    feedback: "unhelpful",
+                                    review: "open",
+                                  });
+                                  setToast(
+                                    "Flagged for staff review in this demo.",
+                                  );
+                                }}
+                              >
+                                <ThumbsDown size={15} />
+                              </button>
+                              {entry.answer.status !== "urgent" &&
+                                !hasHiddenQuestion(entry) &&
+                                !entry.emailFollowUp && (
+                                  <button
+                                    className="handoff"
+                                    onClick={() => setRequesting(entry)}
+                                  >
+                                    <Mail size={14} /> Request an email reply
+                                  </button>
+                                )}
+                            </div>
+                          )}
                           {entry.emailFollowUp && (
                             <div className="followup-receipt">
                               <Mail size={18} />
@@ -833,6 +865,13 @@ export default function App() {
                     </button>
                   </div>
                 </form>
+                <button
+                  className="portal-shortcut"
+                  onClick={() => setPortalHelp(true)}
+                >
+                  <ShieldCheck size={13} /> Enrolled family? Ask about your
+                  child in your parent portal <ArrowUpRight size={13} />
+                </button>
                 <div className="composer-meta">
                   <span>
                     <Sparkles size={12} />
@@ -864,7 +903,8 @@ export default function App() {
             <span>
               <strong>Your own demo workspace.</strong> Edits and questions are
               saved in this browser only. Three labeled sample questions get you
-              started. Staff access and email delivery are simulated.
+              started. Staff access and email delivery are simulated, with no
+              sign-in or protected teacher accounts. Use fictional data only.
             </span>
             <button onClick={() => setReset(true)}>
               <RotateCcw size={14} /> Reset demo
@@ -985,7 +1025,7 @@ export default function App() {
                         <span
                           className={`status-pill ${entry.answer.status === "answered" && entry.review === "resolved" ? "green" : ""}`}
                         >
-                          {entry.emailFollowUp
+                          {entry.emailFollowUp || entry.privacyRedirect
                             ? statusLabel(entry)
                             : entry.review === "resolved"
                               ? "Reviewed"
@@ -1009,9 +1049,9 @@ export default function App() {
                         </div>
                         {hasHiddenQuestion(entry) && (
                           <p className="muted-note">
-                            This question was hidden by an older version and
-                            cannot be recovered. New questions retain their
-                            wording for staff review.
+                            {entry.privacyRedirect
+                              ? "The public front desk showed private-channel or urgent guidance. Personal wording was not saved and no message was forwarded. The family must contact staff through its existing authenticated portal; this is not a teacher reply request."
+                              : "This question was hidden by an older version and cannot be recovered."}
                           </p>
                         )}
                         <div className="staff-followup">
@@ -1054,82 +1094,88 @@ export default function App() {
                             </p>
                           )}
                         </div>
-                        <div className="review-actions">
-                          {entry.emailFollowUp?.status === "pending" && (
-                            <button
-                              className="primary"
-                              onClick={() => setReplying(entry)}
-                            >
-                              <Mail size={15} /> Reply by email
-                            </button>
-                          )}
-                          {!!entry.staffReplies?.length && (
+                        {!entry.privacyRedirect && (
+                          <div className="review-actions">
+                            {entry.emailFollowUp?.status === "pending" && (
+                              <button
+                                className="primary"
+                                onClick={() => setReplying(entry)}
+                              >
+                                <Mail size={15} /> Reply by email
+                              </button>
+                            )}
+                            {!!entry.staffReplies?.length && (
+                              <button
+                                className="secondary"
+                                onClick={() => newPolicy(entry)}
+                              >
+                                <BookOpen size={15} />
+                                {entry.faqPolicyId
+                                  ? "Edit reusable FAQ"
+                                  : "Turn reply into FAQ"}
+                              </button>
+                            )}
+
                             <button
                               className="secondary"
-                              onClick={() => newPolicy(entry)}
+                              onClick={() =>
+                                entry.answer.policy
+                                  ? setEditing(
+                                      state.policies.find(
+                                        (p) => p.id === entry.answer.policy!.id,
+                                      ) || null,
+                                    )
+                                  : newPolicy(entry)
+                              }
                             >
-                              <BookOpen size={15} />
-                              {entry.faqPolicyId
-                                ? "Edit reusable FAQ"
-                                : "Turn reply into FAQ"}
+                              <FileText size={15} />
+                              {entry.answer.policy
+                                ? "Improve this policy"
+                                : "Draft a policy"}
                             </button>
-                          )}
-
-                          <button
-                            className="secondary"
-                            onClick={() =>
-                              entry.answer.policy
-                                ? setEditing(
-                                    state.policies.find(
-                                      (p) => p.id === entry.answer.policy!.id,
-                                    ) || null,
-                                  )
-                                : newPolicy(entry)
-                            }
-                          >
-                            <FileText size={15} />
-                            {entry.answer.policy
-                              ? "Improve this policy"
-                              : "Draft a policy"}
-                          </button>
-                          <button
-                            className="secondary"
-                            disabled={hasHiddenQuestion(entry)}
-                            onClick={() => {
-                              setView("parent");
-                              openChat();
-                              setConversation([]);
-                              void ask(entry.question);
-                            }}
-                          >
-                            Test question <ArrowUpRight size={15} />
-                          </button>
-                          <button
-                            className="secondary"
-                            disabled={entry.emailFollowUp?.status === "pending"}
-                            title={
-                              entry.emailFollowUp?.status === "pending"
-                                ? "Reply to the waiting parent before closing this request"
-                                : undefined
-                            }
-                            onClick={() => {
-                              updateEntry(entry.id, {
-                                review:
-                                  entry.review === "open" ? "resolved" : "open",
-                              });
-                              setToast(
-                                entry.review === "open"
-                                  ? "Marked reviewed. No message was sent to a parent."
-                                  : "Reopened for review.",
-                              );
-                            }}
-                          >
-                            <Check size={15} />
-                            {entry.review === "open"
-                              ? "Mark reviewed"
-                              : "Reopen review"}
-                          </button>
-                        </div>
+                            <button
+                              className="secondary"
+                              disabled={hasHiddenQuestion(entry)}
+                              onClick={() => {
+                                setView("parent");
+                                openChat();
+                                setConversation([]);
+                                void ask(entry.question);
+                              }}
+                            >
+                              Test question <ArrowUpRight size={15} />
+                            </button>
+                            <button
+                              className="secondary"
+                              disabled={
+                                entry.emailFollowUp?.status === "pending"
+                              }
+                              title={
+                                entry.emailFollowUp?.status === "pending"
+                                  ? "Reply to the waiting parent before closing this request"
+                                  : undefined
+                              }
+                              onClick={() => {
+                                updateEntry(entry.id, {
+                                  review:
+                                    entry.review === "open"
+                                      ? "resolved"
+                                      : "open",
+                                });
+                                setToast(
+                                  entry.review === "open"
+                                    ? "Marked reviewed. No message was sent to a parent."
+                                    : "Reopened for review.",
+                                );
+                              }}
+                            >
+                              <Check size={15} />
+                              {entry.review === "open"
+                                ? "Mark reviewed"
+                                : "Reopen review"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </details>
                   ))
@@ -1332,6 +1378,39 @@ export default function App() {
           save={saveReply}
         />
       )}
+      {portalHelp && (
+        <Modal
+          title="Questions about your enrolled child"
+          close={() => setPortalHelp(false)}
+        >
+          <div className="about-content">
+            <p>
+              This public front desk can explain general center policies. For
+              personal updates, care needs, medication requests, or records, use
+              the parent portal your center already provides.
+            </p>
+            <ol>
+              <li>Open your center’s existing parent portal and sign in.</li>
+              <li>
+                Select your child and message their teacher or the office.
+              </li>
+              <li>Keep personal details in that authenticated conversation.</li>
+            </ol>
+            <div className="muted-note">
+              <ShieldCheck size={20} /> Little Grove is fictional. This demo has
+              no connected portal, verified family accounts, or protected
+              teacher inbox. Nothing is forwarded from here.
+            </div>
+            <p>
+              For immediate danger, call local emergency services. Do not wait
+              for a portal or email response.
+            </p>
+            <button className="primary" onClick={() => setPortalHelp(false)}>
+              Back to general questions
+            </button>
+          </div>
+        </Modal>
+      )}
       {about && (
         <Modal
           title="A front desk that knows its limits."
@@ -1354,22 +1433,28 @@ export default function App() {
             <h3>Your demo stays with you.</h3>
             <p>
               Questions, feedback, and edits are stored in this browser, up to
-              200 questions. Questions remain visible to staff, including
-              sensitive ones, with common email and phone patterns removed. This
-              is not comprehensive personal-data detection. An opt-in reply
-              address is stored separately and is never included in AI search.
-              Both perspectives share that local workspace. No accounts, shared
-              database, real messages, or child records are connected. Don’t
-              enter personal information.
+              200 questions. General questions remain visible in the demo staff
+              view, with common email and phone patterns removed. Newly
+              recognized personal and urgent questions retain only a routing
+              label, not their wording. Names and personal situations cannot be
+              detected reliably; don’t enter them here. Earlier demo entries may
+              still contain their original wording. This is not comprehensive
+              personal-data detection. An opt-in reply address is stored
+              separately and is never included in AI search. Both perspectives
+              share that local workspace. No accounts, shared database, real
+              messages, or child records are connected. Don’t enter personal
+              information.
             </p>
             <h3>Reaching a person</h3>
             <p>
               “Request an email reply” saves your explicit opt-in and a reply
               address in this browser. Staff can simulate an email response; no
-              real email is sent. A personal reply becomes reusable guidance
-              only after staff review and publish an FAQ. This demo is not
-              monitored. Use your center’s established contact channel. For
-              immediate danger, contact local emergency services.
+              real email is sent. A general-question reply becomes reusable
+              guidance only after staff review and publish an FAQ. This demo is
+              not monitored. Enrolled families should use their existing
+              authenticated parent portal for child-specific questions. The
+              public staff switch is not a protected inbox. For immediate
+              danger, contact local emergency services.
             </p>
             <h3>About the AI</h3>
             <p>

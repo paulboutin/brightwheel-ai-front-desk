@@ -36,6 +36,7 @@ export type Entry = {
   review: "open" | "resolved";
   requested: boolean;
   sample?: boolean;
+  privacyRedirect?: boolean;
   staffReplies?: StaffReply[];
   emailFollowUp?: EmailFollowUp;
   faqPolicyId?: string;

@@ -8,7 +8,7 @@ export function requestEmailReply(
 ): Entry {
   if (
     !validEmail(email) ||
-    entry.answer.status === "urgent" ||
+    ["urgent", "sensitive"].includes(entry.answer.status) ||
     hasHiddenQuestion(entry)
   )
     return entry;
@@ -25,7 +25,7 @@ export function cancelEmailReply(entry: Entry): Entry {
   return { ...rest, requested: false };
 }
 export const hasHiddenQuestion = (entry: Entry) =>
-  entry.question.includes("details not retained]");
+  !!entry.privacyRedirect || entry.question.includes("details not retained]");
 export function recordStaffReply(
   state: State,
   entryId: string,

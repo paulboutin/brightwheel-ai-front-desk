@@ -150,3 +150,13 @@ describe("human-approved reuse", () => {
     },
   );
 });
+
+it("does not offer a public email request for a personal question", () => {
+  const personal = {
+    ...entry,
+    answer: { ...entry.answer, status: "sensitive" as const },
+  };
+  expect(
+    requestEmailReply(personal, "parent@example.com", entry.createdAt),
+  ).toBe(personal);
+});

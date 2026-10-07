@@ -21,6 +21,14 @@ const matrix = (
   )
 ).tolist();
 const cases = [
+  [
+    "Can the teachers give prescribed medicine during the day?",
+    "medication-policy",
+  ],
+  [
+    "How would you notify families if the building needs to be evacuated?",
+    "emergency-procedures",
+  ],
   ["Do I need to put together a packed lunch each morning?", "meals"],
   ["How much would preschool set us back every month?", "tuition"],
   ["Could we look around the classrooms before signing up?", "tours"],

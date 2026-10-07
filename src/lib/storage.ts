@@ -1,5 +1,5 @@
 import { validEmail } from "./staff";
-import { seedState } from "./data";
+import { initialPolicies, seedState } from "./data";
 import type { Answer, Policy, State } from "./types";
 const KEY = "little-grove-front-desk-v1";
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -34,6 +34,18 @@ function isAnswer(value: unknown): value is Answer {
     (value.policy === undefined || isPolicy(value.policy))
   );
 }
+function addNewDemoPolicies(policies: Policy[]): Policy[] {
+  return [
+    ...policies,
+    ...initialPolicies
+      .filter(
+        (policy) =>
+          ["emergency-procedures", "medication-policy"].includes(policy.id) &&
+          !policies.some((existing) => existing.id === policy.id),
+      )
+      .map((policy) => structuredClone(policy)),
+  ];
+}
 export function loadState(): State {
   try {
     const data: unknown = JSON.parse(localStorage.getItem(KEY) || "null");
@@ -52,6 +64,8 @@ export function loadState(): State {
           isDate(e.createdAt) &&
           ["open", "resolved"].includes(String(e.review)) &&
           typeof e.requested === "boolean" &&
+          (e.privacyRedirect === undefined ||
+            typeof e.privacyRedirect === "boolean") &&
           (e.emailFollowUp === undefined ||
             (isObject(e.emailFollowUp) &&
               typeof e.emailFollowUp.email === "string" &&
@@ -75,7 +89,12 @@ export function loadState(): State {
             ["helpful", "unhelpful"].includes(String(e.feedback))),
       )
     )
-      return { ...data, entries: data.entries.slice(0, 200) } as State;
+      return {
+        ...data,
+        // Introduce new demo policies without overwriting staff edits or withdrawal.
+        policies: addNewDemoPolicies(data.policies),
+        entries: data.entries.slice(0, 200),
+      } as State;
   } catch {
     /* A fresh demo is safer than a broken storage payload. */
   }

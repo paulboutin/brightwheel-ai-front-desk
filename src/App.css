@@ -2344,3 +2344,31 @@
     padding-bottom: 84px;
   }
 }
+
+.portal-shortcut {
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: left;
+  color: #3d614c;
+  padding: 8px 0 3px;
+  gap: 5px;
+  width: 100%;
+}
+.portal-shortcut svg {
+  flex-shrink: 0;
+}
+.portal-route {
+  padding: 14px;
+  background: #edf3e8;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.portal-route p {
+  margin: 0 0 12px;
+}
+.about-content ol {
+  line-height: 1.8;
+  padding-left: 22px;
+  margin-bottom: 20px;
+}
