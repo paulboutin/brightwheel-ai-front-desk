@@ -197,3 +197,27 @@ it("routes an injury involving an unnamed child to the portal", () => {
     safetyAnswer("My child was injured today. What happened?")?.status,
   ).toBe("sensitive");
 });
+
+it.each([
+  "Is Your Center Nut Free?",
+  "Can You Accommodate Gluten Free Diets?",
+  "Is Gluten Free Food Available?",
+  "What is your allergy policy?",
+])("keeps general dietary policy questions public: %s", (question) => {
+  expect(safetyAnswer(question)).toBeUndefined();
+});
+it.each([
+  "My daughter has celiac disease. Can she eat lunch?",
+  "My son is gluten intolerant. Can you feed him?",
+  "Emma needs gluten-free food today.",
+])("routes individual dietary plans privately: %s", (question) => {
+  const answer = safetyAnswer(question)!;
+  expect(answer?.status).toBe("sensitive");
+  expect(publicQuestion(question, answer)).not.toContain(question);
+});
+it.each(["nut free", "gluten free", "gluten-free options"])(
+  "finds dietary policy when only basic search is available: %s",
+  (question) => {
+    expect(keywordCandidates(question, initialPolicies)[0]?.id).toBe("meals");
+  },
+);

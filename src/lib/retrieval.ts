@@ -6,6 +6,12 @@ export type Match = { policyId: string; score: number };
 // These specificity checks prevent common operational exceptions from being
 // mistaken for general policies. They are deliberately not a complete intent model.
 const specificTopics = [
+  /\b(gluten|wheat|celiac|coeliac)\b/,
+  /\b(nuts?|peanuts?|tree nuts?|nutfree)\b/,
+  /\b(dairy|milk|lactose)\b/,
+  /\b(vegan|vegetarian)\b/,
+  /\b(kosher|halal)\b/,
+  /\b(soy|sesame|eggs?)\b/,
   /\b(holiday|holidays|winter break|spring break|snow|weather|christmas|thanksgiving)\b/,
   /\b(weekly|every week|installments?|payment plan)\b/,
   /\b(ratio|ratios|staffing)\b/,

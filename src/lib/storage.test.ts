@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { loadState, saveState } from "./storage";
-import { seedState } from "./data";
+import { seedState, legacyMealsPolicy, initialPolicies } from "./data";
 let stored: string | null;
 beforeEach(() => {
   stored = null;
@@ -92,3 +92,30 @@ it("adds the two new demo policies to an existing workspace without changing edi
     medication,
   );
 });
+
+it("upgrades untouched meal guidance but preserves the previous answer citation", () => {
+  const state = seedState();
+  state.policies = state.policies.map((p) =>
+    p.id === "meals" ? structuredClone(legacyMealsPolicy) : p,
+  );
+  state.entries[0].answer.policy = structuredClone(legacyMealsPolicy);
+  saveState(state);
+  const updated = loadState();
+  expect(updated.policies.find((p) => p.id === "meals")).toEqual(
+    initialPolicies.find((p) => p.id === "meals"),
+  );
+  expect(updated.entries).toEqual(state.entries);
+});
+it.each(["answer", "questions", "published"])(
+  "preserves a staff change to meal %s during migration",
+  (field) => {
+    const state = seedState();
+    const meal = structuredClone(legacyMealsPolicy);
+    if (field === "answer") meal.answer = "Staff's custom dietary policy.";
+    if (field === "questions") meal.questions.push("Custom question?");
+    if (field === "published") meal.published = false;
+    state.policies = state.policies.map((p) => (p.id === "meals" ? meal : p));
+    saveState(state);
+    expect(loadState().policies.find((p) => p.id === "meals")).toEqual(meal);
+  },
+);

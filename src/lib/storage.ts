@@ -1,5 +1,5 @@
 import { validEmail } from "./staff";
-import { initialPolicies, seedState } from "./data";
+import { initialPolicies, legacyMealsPolicy, seedState } from "./data";
 import type { Answer, Policy, State } from "./types";
 const KEY = "little-grove-front-desk-v1";
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -36,7 +36,17 @@ function isAnswer(value: unknown): value is Answer {
 }
 function addNewDemoPolicies(policies: Policy[]): Policy[] {
   return [
-    ...policies,
+    ...policies.map((policy) => {
+      // Upgrade only the exact original seed. Preserve staff edits, withdrawals,
+      // and historical answer snapshots even when the staff kept version 1.
+      const untouched = Object.entries(legacyMealsPolicy).every(
+        ([key, value]) =>
+          JSON.stringify(policy[key as keyof Policy]) === JSON.stringify(value),
+      );
+      return untouched
+        ? structuredClone(initialPolicies.find((p) => p.id === "meals")!)
+        : policy;
+    }),
     ...initialPolicies
       .filter(
         (policy) =>

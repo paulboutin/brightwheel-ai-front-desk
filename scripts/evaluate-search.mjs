@@ -21,6 +21,18 @@ const matrix = (
   )
 ).tolist();
 const cases = [
+  ["Is the school a nut free zone?", "meals"],
+  ["Are you a peanut-free school?", "meals"],
+  ["Can kids bring peanut butter sandwiches?", "meals"],
+  ["Do you provide meals without gluten?", "meals"],
+  ["Are gluten free lunches available?", "meals"],
+  ["Can the center cater for gluten-free diets?", "meals"],
+  ["Is Your Center Nut Free?", "meals"],
+  ["Is the kitchen guaranteed free of allergens?", "meals"],
+  ["Do you offer dairy-free lunches?", null],
+  ["Is the food vegan?", null],
+  ["Do you serve kosher meals?", null],
+  ["Are the snacks sesame-free?", null],
   [
     "Can the teachers give prescribed medicine during the day?",
     "medication-policy",

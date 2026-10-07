@@ -10,6 +10,10 @@ describe("retrieval abstention", () => {
     "What is your potty training policy?",
     "Do children nap after lunch?",
     "Is there a camera feed?",
+    "Do you serve dairy-free meals?",
+    "Is the lunch vegan?",
+    "Do you have kosher food?",
+    "Is lunch sesame-free?",
     "If my child needs assistance with eating lunch can I count on someone being there for her?",
   ])("abstains on an uncovered specific topic: %s", (q) => {
     expect(eligiblePolicies(q, initialPolicies)).toHaveLength(0);
@@ -53,4 +57,13 @@ describe("retrieval abstention", () => {
       )?.id,
     ).toBe("meals");
   });
+});
+
+it("does not use generic lunch guidance for a gluten question when coverage is withdrawn", () => {
+  const policies = initialPolicies.map((p) =>
+    p.id === "meals" ? { ...p, published: false } : p,
+  );
+  expect(
+    eligiblePolicies("Do you offer gluten-free lunch?", policies),
+  ).toHaveLength(0);
 });

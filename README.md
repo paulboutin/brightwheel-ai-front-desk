@@ -8,7 +8,7 @@ A mobile-friendly **public AI front desk** for a fictional childcare center, bui
 
 **Product context:** a public front desk for prospective and enrolled families asking general questions about the center. It is **not an authenticated parent portal**, a child-record system, or a secure teacher messaging service. The assignment leaves the access model open; this is our deliberate scope choice.
 
-**Public questions:** hours, tuition, meals, tours, emergency procedures, and medication administration policies. Answers use published fictional policy text. Unanswered general questions can request a clearly simulated email reply; staff can turn a reviewed response into a reusable FAQ.
+**Public questions:** hours, tuition, meals, nut awareness, gluten-free accommodation requests, tours, emergency procedures, and medication administration policies. Answers use published fictional policy text. Unanswered general questions can request a clearly simulated email reply; staff can turn a reviewed response into a reusable FAQ.
 
 **Questions about an enrolled child:** direct the family to its center’s **existing authenticated parent portal**. In that system, the signed-in parent’s identity and authorized child relationship would accompany the message, and teachers would see only conversations they are allowed to access. Names are neither proof of identity nor a reliable way to detect personal information. Reports of immediate danger receive urgent guidance even without a child’s name.
 
@@ -41,8 +41,8 @@ npm run dev
 ```
 
 ```sh
-npm run check     # lint, 114 unit cases, TypeScript, production build
-npm run eval:ai   # 18 real-model retrieval cases; downloads the pinned model
+npm run check     # lint, 143 unit cases, TypeScript, production build
+npm run eval:ai   # 30 real-model retrieval cases; downloads the pinned model
 npm run preview  # serve the production build locally
 ```
 
@@ -60,7 +60,7 @@ This is **semantic retrieval, not generated prose**. The quantized `Xenova/all-M
 - Published edits invalidate the embedding index on the next search. Withdrawn policies are excluded. Older citations remain historical snapshots.
 - On model failure or a 45-second timeout, clearly labeled basic keyword search and the policy library remain usable. Coverage guards still apply. The app never silently claims AI succeeded.
 
-The real-model evaluation includes paraphrases and missing-policy questions. It caught snow-day/illness and holiday/hours confusion; coverage checks and an ambiguity margin addressed those cases. **18/18 passing is a small regression set used during development, not an independent accuracy estimate.** Scores can vary slightly by inference backend. Browser testing also exercised actual WASM inference, policy publication, persistence after reload, source inspection, and the 390-pixel mobile layout.
+The real-model evaluation includes dietary paraphrases and missing-policy questions. Parent testing exposed unanswered nut-free/gluten-free questions: explicit examples and approved dietary guidance address that gap, without lowering the relevance threshold or promising safe meals for an individual child. Uncovered diets (such as dairy-free, vegan, kosher, or sesame-free) still abstain. An untouched original meals policy upgrades on reload; staff edits and withdrawals are preserved, as are older answer citations. It caught snow-day/illness and holiday/hours confusion; coverage checks and an ambiguity margin addressed those cases. **30/30 passing is a small regression set used during development, not an independent accuracy estimate.** Scores can vary slightly by inference backend. Browser testing also exercised actual WASM inference, policy publication, persistence after reload, source inspection, and the 390-pixel mobile layout.
 
 ## Privacy, cost, and boundaries
 

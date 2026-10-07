@@ -32,15 +32,20 @@ export function safetyAnswer(question: string): Answer | undefined {
       engine: "safety",
     };
   // These are routing hints, not identity verification or comprehensive name detection.
+  const potentialName =
+    /\b(?:my (?:child|son|daughter|baby|toddler)(?: is named| named|,)?|(?:Did|Has|Is|Was|Can|Could|Will))\s+[A-Z][\p{L}'’-]+(?:\s|,)/u.exec(
+      question,
+    )?.[0] ||
+    /\b[A-Z][\p{L}'’-]+ (?:has|needs|takes|is feeling|was hurt|ate|didn't eat|can't|cannot)\b/u.exec(
+      question,
+    )?.[0];
   const namedChild =
-    /\b(?:my (?:child|son|daughter|baby|toddler)(?: is named| named|,)?|(?:Did|Has|Is|Was|Can|Could|Will))\s+[A-Z][\p{L}'’-]+(?:\s|,)/u.test(
-      question,
-    ) ||
-    /\b[A-Z][\p{L}'’-]+ (?:has|needs|takes|is feeling|was hurt|ate|didn't eat|can't|cannot)\b/u.test(
-      question,
+    !!potentialName &&
+    !/\b(You|Your|Our|The|This|There|Children|Gluten|Nut|Peanut|Food|Lunch|Staff|School|Center)\b/.test(
+      potentialName,
     );
   const individualHealth =
-    /\b(injur\w*|hurt|sick|ill|fever|vomit\w*|throwing up|diarrhea|temperature|allerg\w*|symptoms?|contagious|rash|medicat\w*|prescription|feeding tube|dysphagia)\b/.test(
+    /\b(injur\w*|hurt|sick|ill|fever|vomit\w*|throwing up|diarrhea|temperature|allerg\w*|symptoms?|contagious|rash|medicat\w*|prescription|feeding tube|dysphagia|celiac|coeliac|intoleran\w*|anaphyla\w*)\b/.test(
       q,
     ) &&
     (/\b(my (child|son|daughter|baby|toddler)|she|he|his|her)\b|can (i|we).*(bring|send)/.test(

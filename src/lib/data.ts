@@ -4,6 +4,21 @@ const base = {
   version: 1,
   published: true,
 };
+// Used only to recognize an untouched original demo policy during migration.
+export const legacyMealsPolicy: Policy = {
+  ...base,
+  id: "meals",
+  title: "Meals & food allergies",
+  category: "Daily essentials",
+  answer:
+    "We serve a morning snack, lunch, and an afternoon snack, all included in tuition. Our center is nut-aware, but we cannot guarantee an allergen-free environment. Please do not send food containing peanuts or tree nuts. Individual allergies and dietary accommodations must be reviewed with staff before your child attends.",
+  questions: [
+    "Is lunch included?",
+    "Do I need to pack food?",
+    "How do you handle food allergies?",
+  ],
+  keywords: ["lunch", "snack", "food", "meal", "nut", "allerg", "diet"],
+};
 export const initialPolicies: Policy[] = [
   {
     ...base,
@@ -74,18 +89,32 @@ export const initialPolicies: Policy[] = [
     ],
   },
   {
-    ...base,
-    id: "meals",
-    title: "Meals & food allergies",
-    category: "Daily essentials",
+    ...legacyMealsPolicy,
+    version: 2,
+    updatedAt: "2026-10-07T16:00:00.000Z",
+    title: "Meals, nut awareness & gluten-free requests",
     answer:
-      "We serve a morning snack, lunch, and an afternoon snack, all included in tuition. Our center is nut-aware, but we cannot guarantee an allergen-free environment. Please do not send food containing peanuts or tree nuts. Individual allergies and dietary accommodations must be reviewed with staff before your child attends.",
+      "Lunch and two snacks are included in tuition. Little Grove is nut-aware, not a guaranteed nut-free environment: please do not send peanuts or tree nuts. We cannot guarantee an allergen-free environment or prevent all cross-contact. We do not offer a guaranteed gluten-free menu. Gluten-free meals and other dietary accommodations require advance staff review; please do not assume a meal is suitable before an individual plan is confirmed. Enrolled families should use their existing secure parent portal to discuss allergies, celiac disease, or a child's dietary plan. Prospective families can ask the office about the accommodation process without sharing medical details in this public chat.",
     questions: [
-      "Is lunch included?",
-      "Do I need to pack food?",
-      "How do you handle food allergies?",
+      ...legacyMealsPolicy.questions,
+      "Are you nut free?",
+      "Is this a nut-free environment?",
+      "Are peanuts and tree nuts allowed?",
+      "Can children bring peanut butter?",
+      "Do you serve gluten-free food?",
+      "Do you have gluten free options?",
+      "Can you accommodate a gluten-free diet?",
+      "What is your policy on celiac dietary accommodations?",
+      "Can you guarantee no allergen cross-contact?",
+      "Is your kitchen allergen-free?",
     ],
-    keywords: ["lunch", "snack", "food", "meal", "nut", "allerg", "diet"],
+    keywords: [
+      ...legacyMealsPolicy.keywords,
+      "gluten",
+      "celiac",
+      "coeliac",
+      "cross-contact",
+    ],
   },
   {
     ...base,
