@@ -10,6 +10,7 @@ describe("retrieval abstention", () => {
     "What is your potty training policy?",
     "Do children nap after lunch?",
     "Is there a camera feed?",
+    "If my child needs assistance with eating lunch can I count on someone being there for her?",
   ])("abstains on an uncovered specific topic: %s", (q) => {
     expect(eligiblePolicies(q, initialPolicies)).toHaveLength(0);
   });

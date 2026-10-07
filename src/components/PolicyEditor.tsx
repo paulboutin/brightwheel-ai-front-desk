@@ -7,12 +7,15 @@ export default function PolicyEditor({
   policy,
   close,
   save,
+  fromReply = false,
 }: {
   policy: Policy;
   close: () => void;
   save: (p: Policy) => void;
+  fromReply?: boolean;
 }) {
   const [draft, setDraft] = useState(policy);
+  const [generalUse, setGeneralUse] = useState(false);
   return (
     <Modal
       title={
@@ -26,6 +29,7 @@ export default function PolicyEditor({
         className="policy-form"
         onSubmit={(e) => {
           e.preventDefault();
+          if (fromReply && draft.published && !generalUse) return;
           save(draft);
         }}
       >
@@ -33,6 +37,13 @@ export default function PolicyEditor({
           Only published policies appear in parent answers. Changes take effect
           for new questions.
         </p>
+        {fromReply && (
+          <div className="muted-note">
+            Turn this into guidance for all families. Remove names, individual
+            circumstances, and private arrangements. A reply is not reusable
+            until this FAQ is published.
+          </div>
+        )}
         <label>
           Policy title
           <input
@@ -100,6 +111,20 @@ export default function PolicyEditor({
           <AlertTriangle size={17} /> Fictional center data only. Review
           accuracy before publishing.
         </div>
+        {fromReply && draft.published && (
+          <label className="publish-toggle">
+            <input
+              type="checkbox"
+              required
+              checked={generalUse}
+              onChange={(e) => setGeneralUse(e.target.checked)}
+            />
+            <span>
+              I’ve reviewed this answer for all families and removed private
+              details.
+            </span>
+          </label>
+        )}
         <div className="modal-actions">
           <button type="button" className="secondary" onClick={close}>
             <ArrowLeft size={15} /> Cancel
@@ -108,6 +133,7 @@ export default function PolicyEditor({
             className="primary"
             type="submit"
             disabled={
+              (fromReply && draft.published && !generalUse) ||
               !draft.title.trim() ||
               draft.answer.trim().length < 20 ||
               !draft.questions.some((q) => q.trim())

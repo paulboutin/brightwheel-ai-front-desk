@@ -1,3 +1,4 @@
+import { validEmail } from "./staff";
 import { seedState } from "./data";
 import type { Answer, Policy, State } from "./types";
 const KEY = "little-grove-front-desk-v1";
@@ -51,6 +52,25 @@ export function loadState(): State {
           isDate(e.createdAt) &&
           ["open", "resolved"].includes(String(e.review)) &&
           typeof e.requested === "boolean" &&
+          (e.emailFollowUp === undefined ||
+            (isObject(e.emailFollowUp) &&
+              typeof e.emailFollowUp.email === "string" &&
+              validEmail(e.emailFollowUp.email) &&
+              isDate(e.emailFollowUp.consentedAt) &&
+              ["pending", "simulated"].includes(
+                String(e.emailFollowUp.status),
+              ))) &&
+          (e.faqPolicyId === undefined || typeof e.faqPolicyId === "string") &&
+          (e.staffReplies === undefined ||
+            (Array.isArray(e.staffReplies) &&
+              e.staffReplies.every(
+                (reply) =>
+                  isObject(reply) &&
+                  typeof reply.id === "string" &&
+                  typeof reply.text === "string" &&
+                  isDate(reply.createdAt) &&
+                  reply.delivery === "simulated",
+              ))) &&
           (e.feedback === undefined ||
             ["helpful", "unhelpful"].includes(String(e.feedback))),
       )

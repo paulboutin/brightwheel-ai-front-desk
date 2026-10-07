@@ -16,6 +16,7 @@ import {
   Inbox,
   Leaf,
   MessageCircle,
+  Mail,
   Plus,
   Search,
   Settings2,
@@ -44,6 +45,15 @@ import { eligiblePolicies, selectRelatedPolicy } from "./lib/retrieval";
 import "./App.css";
 import Modal from "./components/Modal";
 import PolicyEditor from "./components/PolicyEditor";
+import ReplyEditor from "./components/ReplyEditor";
+import EmailRequest from "./components/EmailRequest";
+import {
+  hasHiddenQuestion,
+  recordStaffReply,
+  draftFaqFromReply,
+  requestEmailReply,
+  cancelEmailReply,
+} from "./lib/staff";
 const categories = [
   { label: "Hours & drop-off", icon: Clock3, id: "hours" },
   { label: "Tuition & enrollment", icon: Users, id: "tuition" },
@@ -56,19 +66,23 @@ const date = (value: string) =>
     day: "numeric",
   });
 const statusLabel = (entry: Entry) =>
-  entry.answer.status === "urgent"
-    ? "Urgent guidance"
-    : entry.answer.status === "sensitive"
-      ? "Private conversation"
-      : entry.feedback === "unhelpful"
-        ? "Not helpful"
-        : entry.requested
-          ? "Staff requested"
-          : entry.answer.status === "answered"
-            ? "Policy shared"
-            : entry.answer.status === "related"
-              ? "Related policy"
-              : "Knowledge gap";
+  entry.emailFollowUp?.status === "pending"
+    ? "Email reply requested"
+    : entry.emailFollowUp?.status === "simulated"
+      ? "Email reply simulated"
+      : entry.answer.status === "urgent"
+        ? "Urgent guidance"
+        : entry.answer.status === "sensitive"
+          ? "Private conversation"
+          : entry.feedback === "unhelpful"
+            ? "Not helpful"
+            : entry.requested
+              ? "Staff requested"
+              : entry.answer.status === "answered"
+                ? "Policy shared"
+                : entry.answer.status === "related"
+                  ? "Related policy"
+                  : "Knowledge gap";
 function Icon({
   icon: IconType,
   size = 20,
@@ -90,6 +104,11 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [source, setSource] = useState<Policy | null>(null);
   const [editing, setEditing] = useState<Policy | null>(null);
+  const [replying, setReplying] = useState<Entry | null>(null);
+  const [requesting, setRequesting] = useState<Entry | null>(null);
+  const [policySourceEntryId, setPolicySourceEntryId] = useState<string | null>(
+    null,
+  );
   const [filter, setFilter] = useState<"all" | "open">("open");
   const [search, setSearch] = useState("");
   const [about, setAbout] = useState(false);
@@ -122,7 +141,7 @@ export default function App() {
   function addAnswer(q: string, answer: Answer) {
     const entry: Entry = {
       id: crypto.randomUUID(),
-      question: redactQuestion(q, answer),
+      question: redactQuestion(q),
       answer,
       createdAt: new Date().toISOString(),
       review: answer.status === "answered" ? "resolved" : "open",
@@ -177,17 +196,43 @@ export default function App() {
     if (!busy) addAnswer(p.questions[0] || p.title, policyAnswer(p));
   }
   function newPolicy(entry?: Entry) {
-    setEditing({
+    setPolicySourceEntryId(entry?.id ?? null);
+    const existing =
+      entry && state.policies.find((p) => p.id === entry.faqPolicyId);
+    setEditing(
+      existing ||
+        (entry
+          ? draftFaqFromReply(entry, crypto.randomUUID())
+          : {
+              id: crypto.randomUUID(),
+              title: "",
+              category: "Daily essentials",
+              answer: "",
+              questions: [""],
+              keywords: [],
+              updatedAt: "",
+              version: 0,
+              published: false,
+            }),
+    );
+  }
+  function saveReply(text: string, draftFaq: boolean) {
+    if (!replying || !text.trim()) return;
+    const next = recordStaffReply(state, replying.id, {
       id: crypto.randomUUID(),
-      title: "",
-      category: "Daily essentials",
-      answer: "",
-      questions: entry ? [entry.question] : [""],
-      keywords: [],
-      updatedAt: "",
-      version: 0,
-      published: false,
+      text,
+      createdAt: new Date().toISOString(),
+      delivery: "simulated",
     });
+    if (
+      next.entries.find((e) => e.id === replying.id) ===
+      state.entries.find((e) => e.id === replying.id)
+    )
+      return;
+    setState(next);
+    setReplying(null);
+    setToast("Email reply simulated and saved. No email was sent.");
+    if (draftFaq) newPolicy(next.entries.find((e) => e.id === replying.id));
   }
   function savePolicy(p: Policy) {
     const next = {
@@ -209,11 +254,17 @@ export default function App() {
     };
     setState((s) => ({
       ...s,
+      entries: policySourceEntryId
+        ? s.entries.map((e) =>
+            e.id === policySourceEntryId ? { ...e, faqPolicyId: next.id } : e,
+          )
+        : s.entries,
       policies: s.policies.some((item) => item.id === next.id)
         ? s.policies.map((item) => (item.id === next.id ? next : item))
         : [...s.policies, next],
     }));
     setEditing(null);
+    setPolicySourceEntryId(null);
     setToast(
       next.published
         ? "Policy published. New questions use this version."
@@ -504,30 +555,65 @@ export default function App() {
                         >
                           <ThumbsDown size={15} />
                         </button>
-                        <button
-                          className="handoff"
-                          disabled={entry.requested}
-                          onClick={() => {
-                            updateEntry(entry.id, {
-                              requested: true,
-                              review: "open",
-                            });
-                            setToast(
-                              "Added to the demo staff queue. No real center was contacted.",
-                            );
-                          }}
-                        >
-                          {entry.requested ? (
-                            <>
-                              <Check size={14} /> In demo staff queue
-                            </>
-                          ) : (
-                            <>
-                              Ask staff to review <ArrowUpRight size={14} />
-                            </>
+                        {entry.answer.status !== "urgent" &&
+                          !hasHiddenQuestion(entry) &&
+                          !entry.emailFollowUp && (
+                            <button
+                              className="handoff"
+                              onClick={() => setRequesting(entry)}
+                            >
+                              <Mail size={14} /> Request an email reply
+                            </button>
                           )}
-                        </button>
                       </div>
+                      {entry.emailFollowUp && (
+                        <div className="followup-receipt">
+                          <Mail size={18} />
+                          <div>
+                            <strong>
+                              {entry.emailFollowUp.status === "pending"
+                                ? "Email reply requested · demo"
+                                : "Email reply simulated"}
+                            </strong>
+                            <p>
+                              {entry.emailFollowUp.status === "pending"
+                                ? `Your request is saved for ${entry.emailFollowUp.email}. Staff replies are asynchronous; you don’t need to keep the chat open.`
+                                : `A demo reply for ${entry.emailFollowUp.email} was saved. No email was sent.`}
+                            </p>
+                            {entry.emailFollowUp.status === "pending" && (
+                              <>
+                                <small>
+                                  This demo is not monitored and does not send
+                                  email.
+                                </small>
+                                <button
+                                  className="text-link"
+                                  onClick={() => {
+                                    updateEntry(entry.id, {
+                                      ...cancelEmailReply(entry),
+                                      emailFollowUp: undefined,
+                                    });
+                                    setToast(
+                                      "Reply request canceled and email address removed.",
+                                    );
+                                  }}
+                                >
+                                  Cancel reply request
+                                </button>
+                              </>
+                            )}
+                            {entry.staffReplies?.map((reply) => (
+                              <blockquote key={reply.id}>
+                                <span className="eyebrow">
+                                  Simulated staff email ·{" "}
+                                  {date(reply.createdAt)}
+                                </span>
+                                <p>{reply.text}</p>
+                              </blockquote>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </article>
                   </div>
                 ))}
@@ -611,6 +697,30 @@ export default function App() {
                 </details>
               </div>
             )}
+            {state.entries.some((e) => !e.sample) && (
+              <details className="saved-questions">
+                <summary>
+                  Your saved questions <ChevronDown size={14} />
+                </summary>
+                <p>Saved on this browser, including reply requests.</p>
+                {state.entries
+                  .filter((e) => !e.sample)
+                  .map((entry) => (
+                    <button
+                      key={entry.id}
+                      onClick={() =>
+                        setConversation((c) =>
+                          c.includes(entry.id) ? c : [...c, entry.id],
+                        )
+                      }
+                    >
+                      <span>{entry.question}</span>
+                      <small>{statusLabel(entry)}</small>
+                      <ChevronRight size={16} />
+                    </button>
+                  ))}
+              </details>
+            )}
           </main>
         </div>
       ) : (
@@ -633,7 +743,7 @@ export default function App() {
             <span>
               <strong>Your own demo workspace.</strong> Edits and questions are
               saved in this browser only. Three labeled sample questions get you
-              started. Staff access is simulated.
+              started. Staff access and email delivery are simulated.
             </span>
             <button onClick={() => setReset(true)}>
               <RotateCcw size={14} /> Reset demo
@@ -754,9 +864,11 @@ export default function App() {
                         <span
                           className={`status-pill ${entry.answer.status === "answered" && entry.review === "resolved" ? "green" : ""}`}
                         >
-                          {entry.review === "resolved"
-                            ? "Reviewed"
-                            : statusLabel(entry)}
+                          {entry.emailFollowUp
+                            ? statusLabel(entry)
+                            : entry.review === "resolved"
+                              ? "Reviewed"
+                              : statusLabel(entry)}
                         </span>
                         <ChevronDown size={17} />
                       </summary>
@@ -774,7 +886,74 @@ export default function App() {
                             </button>
                           )}
                         </div>
+                        {hasHiddenQuestion(entry) && (
+                          <p className="muted-note">
+                            This question was hidden by an older version and
+                            cannot be recovered. New questions retain their
+                            wording for staff review.
+                          </p>
+                        )}
+                        <div className="staff-followup">
+                          {entry.emailFollowUp ? (
+                            <>
+                              <strong>
+                                <Mail size={16} />{" "}
+                                {entry.emailFollowUp.status === "pending"
+                                  ? "Waiting for an email reply"
+                                  : "Reply simulated · no email sent"}
+                              </strong>
+                              <p>
+                                {entry.emailFollowUp.email} · Opted in{" "}
+                                {date(entry.emailFollowUp.consentedAt)}
+                              </p>
+                              {entry.staffReplies?.map((reply) => (
+                                <blockquote key={reply.id}>
+                                  <p>{reply.text}</p>
+                                  <small>
+                                    Simulated {date(reply.createdAt)} · Personal
+                                    reply, excluded from AI search
+                                  </small>
+                                </blockquote>
+                              ))}
+                            </>
+                          ) : (
+                            <p>
+                              The parent has not requested an email reply. You
+                              can still improve the published guidance.
+                            </p>
+                          )}
+                          {entry.faqPolicyId && (
+                            <p>
+                              Reusable FAQ:{" "}
+                              {state.policies.find(
+                                (p) => p.id === entry.faqPolicyId,
+                              )?.published
+                                ? "Published for future questions"
+                                : "Draft · not used for answers"}
+                            </p>
+                          )}
+                        </div>
                         <div className="review-actions">
+                          {entry.emailFollowUp?.status === "pending" && (
+                            <button
+                              className="primary"
+                              onClick={() => setReplying(entry)}
+                            >
+                              <Mail size={15} /> Reply by email
+                            </button>
+                          )}
+                          {!!entry.staffReplies?.length && (
+                            <button
+                              className="secondary"
+                              onClick={() => newPolicy(entry)}
+                            >
+                              <BookOpen size={15} />
+                              {entry.faqPolicyId
+                                ? "Edit reusable FAQ"
+                                : "Turn reply into FAQ"}
+                            </button>
+                          )}
+
                           <button
                             className="secondary"
                             onClick={() =>
@@ -794,6 +973,7 @@ export default function App() {
                           </button>
                           <button
                             className="secondary"
+                            disabled={hasHiddenQuestion(entry)}
                             onClick={() => {
                               setView("parent");
                               void ask(entry.question);
@@ -802,7 +982,13 @@ export default function App() {
                             Test question <ArrowUpRight size={15} />
                           </button>
                           <button
-                            className="primary"
+                            className="secondary"
+                            disabled={entry.emailFollowUp?.status === "pending"}
+                            title={
+                              entry.emailFollowUp?.status === "pending"
+                                ? "Reply to the waiting parent before closing this request"
+                                : undefined
+                            }
                             onClick={() => {
                               updateEntry(entry.id, {
                                 review:
@@ -928,8 +1114,41 @@ export default function App() {
       {editing && (
         <PolicyEditor
           policy={editing}
-          close={() => setEditing(null)}
+          key={editing.id}
+          fromReply={
+            !!policySourceEntryId ||
+            state.entries.some((e) => e.faqPolicyId === editing.id)
+          }
+          close={() => {
+            setEditing(null);
+            setPolicySourceEntryId(null);
+          }}
           save={savePolicy}
+        />
+      )}
+      {requesting && (
+        <EmailRequest
+          entry={requesting}
+          close={() => setRequesting(null)}
+          save={(email) => {
+            setState((s) => ({
+              ...s,
+              entries: s.entries.map((e) =>
+                e.id === requesting.id
+                  ? requestEmailReply(e, email, new Date().toISOString())
+                  : e,
+              ),
+            }));
+            setRequesting(null);
+            setToast("Demo email reply request saved. No email was sent.");
+          }}
+        />
+      )}
+      {replying && (
+        <ReplyEditor
+          entry={replying}
+          close={() => setReplying(null)}
+          save={saveReply}
         />
       )}
       {about && (
@@ -954,19 +1173,22 @@ export default function App() {
             <h3>Your demo stays with you.</h3>
             <p>
               Questions, feedback, and edits are stored in this browser, up to
-              200 questions. Recognized sensitive questions are replaced with a
-              category; other questions have common email and phone patterns
-              removed. This is not comprehensive personal-data detection. Both
-              perspectives share that local workspace. No accounts, shared
+              200 questions. Questions remain visible to staff, including
+              sensitive ones, with common email and phone patterns removed. This
+              is not comprehensive personal-data detection. An opt-in reply
+              address is stored separately and is never included in AI search.
+              Both perspectives share that local workspace. No accounts, shared
               database, real messages, or child records are connected. Don’t
               enter personal information.
             </p>
             <h3>Reaching a person</h3>
             <p>
-              “Ask staff to review” adds an item to the demo inbox only. In a
-              real center, use your established private phone or messaging
-              channel. This demo is not monitored. For immediate danger, contact
-              local emergency services.
+              “Request an email reply” saves your explicit opt-in and a reply
+              address in this browser. Staff can simulate an email response; no
+              real email is sent. A personal reply becomes reusable guidance
+              only after staff review and publish an FAQ. This demo is not
+              monitored. Use your center’s established contact channel. For
+              immediate danger, contact local emergency services.
             </p>
             <h3>About the AI</h3>
             <p>

@@ -52,3 +52,22 @@ it("caps retained history at 200 questions", () => {
   saveState(data);
   expect(loadState().entries).toHaveLength(200);
 });
+it("persists email consent, simulated replies, and FAQ links without altering old entries", () => {
+  const data = seedState();
+  data.entries[0].emailFollowUp = {
+    email: "parent@example.com",
+    status: "simulated",
+    consentedAt: data.entries[0].createdAt,
+  };
+  data.entries[0].staffReplies = [
+    {
+      id: "reply",
+      text: "Here is the center's response.",
+      createdAt: data.entries[0].createdAt,
+      delivery: "simulated",
+    },
+  ];
+  data.entries[0].faqPolicyId = "new-faq";
+  saveState(data);
+  expect(loadState()).toEqual(data);
+});

@@ -36,6 +36,10 @@ const cases = [
   ["Can I get a sibling discount?", null],
   ["Who won the football game?", null],
   ["Is there a camera feed I can watch?", null],
+  [
+    "If my child needs assistance with eating lunch can I count on someone being there for her?",
+    null,
+  ],
 ];
 let passed = 0;
 for (const [question, expected] of cases) {

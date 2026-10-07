@@ -8,10 +8,12 @@ A mobile-friendly prototype for a fictional childcare center, built for the brig
 
 1. In **For parents**, select **Hours & drop-off**. Open the citation to inspect the policy version.
 2. Ask **“Do I need to put together a packed lunch each morning?”** to exercise real local AI retrieval. The first model download takes longer; later searches reuse it.
-3. Ask **“Are you open during winter break?”**. No holiday policy is published, so the system abstains. Choose **Ask staff to review**.
-4. Switch to **Staff workspace**, expand that question, and choose **Draft a policy**. Add fictional closure dates and publish it. The original question is already included as a retrieval example.
-5. Test the question again. The new answer cites the new policy. The original conversation retains the old answer; mark the gap reviewed when satisfied.
-6. Try **“My child has a fever, can she attend?”** or **“My child cannot breathe”** to inspect private/urgent handling. Sensitive details are replaced by a category in retained history.
+3. Ask **“Are you open during winter break?”**. No holiday policy is published, so the system abstains. Choose **Request an email reply**, enter `parent@example.com`, and explicitly opt in. This is asynchronous and clearly simulated; no email is sent.
+4. Switch to **Staff workspace**, expand that question, and choose **Reply by email**. Write a fictional response and choose **Simulate reply & draft FAQ**. Review the prefilled answer for all families, add a title, and explicitly approve it for publication. Private replies alone never become AI knowledge.
+5. Test the question again. The new answer cites the new policy. The original conversation retains the old answer; the reply request is resolved independently of FAQ publication. Saved questions and requests remain accessible after reload.
+6. Try **“My child has a fever, can she attend?”** or **“My child cannot breathe”** to inspect private/urgent handling. Staff can see the question wording. Emergency guidance does not offer asynchronous email as a substitute for immediate help.
+
+Try the reported regression: **“If my child needs assistance with eating lunch can I count on someone being there for her?”** It remains visible as a knowledge gap until staff publish suitable guidance; ordinary eating assistance is no longer treated as a health decision. Older questions whose wording was discarded cannot be recovered.
 
 Every reviewer gets their own browser-local sandbox. Three entries are explicitly labeled sample data. Reset restores the original seven policies and three questions. The staff switch is a demo perspective, **not authentication**. No real messages or emergency alerts are sent.
 
@@ -25,8 +27,8 @@ npm run dev
 ```
 
 ```sh
-npm run check     # lint, 63 unit cases, TypeScript, production build
-npm run eval:ai   # 15 real-model retrieval cases; downloads the pinned model
+npm run check     # lint, 82 unit cases, TypeScript, production build
+npm run eval:ai   # 16 real-model retrieval cases; downloads the pinned model
 npm run preview  # serve the production build locally
 ```
 
@@ -44,20 +46,20 @@ This is **semantic retrieval, not generated prose**. The quantized `Xenova/all-M
 - Published edits invalidate the embedding index on the next search. Withdrawn policies are excluded. Older citations remain historical snapshots.
 - On model failure or a 45-second timeout, clearly labeled basic keyword search and the policy library remain usable. Coverage guards still apply. The app never silently claims AI succeeded.
 
-The real-model evaluation includes paraphrases and missing-policy questions. It caught snow-day/illness and holiday/hours confusion; coverage checks and an ambiguity margin addressed those cases. **15/15 passing is a small regression set used during development, not an independent accuracy estimate.** Scores can vary slightly by inference backend. Browser testing also exercised actual WASM inference, policy publication, persistence after reload, source inspection, and the 390-pixel mobile layout.
+The real-model evaluation includes paraphrases and missing-policy questions. It caught snow-day/illness and holiday/hours confusion; coverage checks and an ambiguity margin addressed those cases. **16/16 passing is a small regression set used during development, not an independent accuracy estimate.** Scores can vary slightly by inference backend. Browser testing also exercised actual WASM inference, policy publication, persistence after reload, source inspection, and the 390-pixel mobile layout.
 
 ## Privacy, cost, and boundaries
 
 - No backend, child records, analytics, cloud inference, authentication, or shared database. Questions stay on the device; localStorage retains at most 200 entries. A blocked or full store produces a visible warning.
-- Recognized sensitive queries are replaced with a category. Common email and telephone patterns are removed from other retained queries. This **does not comprehensively detect personal data**. The UI asks users not to enter it. Anyone with access to the browser profile can inspect its demo data.
+- Questions, including sensitive questions, retain their wording so staff can respond. Common email and telephone patterns are removed from question text. An explicitly opted-in email address is stored separately with a consent timestamp and never embedded or copied into an FAQ. Canceling a pending request removes its address. This **does not comprehensively detect personal data**. The UI asks users not to enter it. Anyone with access to the browser profile can inspect its demo data.
 - The browser downloads model assets from Hugging Face and runtime assets from hosting/CDN infrastructure. Google Fonts supplies fonts. Those hosts receive normal request metadata, but question text is not sent to them.
 - The first AI request downloads a quantized model (about 23 MB) plus the WASM runtime; downloads may be slow or blocked. There is no per-question inference fee. Render static hosting uses the free static-site offering, subject to account bandwidth and build allowances.
-- Questions are independent, in English, and retrieve at most one policy. There is no conversational memory, translation, voice, ingestion, or automatic staff follow-up.
+- Questions are independent, in English, and retrieve at most one policy. There is no conversational memory, translation, voice, ingestion, or real email delivery. The asynchronous email-request and staff-reply workflow is simulated within one browser.
 - Safety rules are incomplete, as are the specificity checks. A published policy can itself be wrong; local demo edits are not access controlled. This is not suitable for real parent data or unattended production use.
 
 ## What comes next
 
-Start with a small operator pilot and a held-out evaluation of real, de-identified parent questions. Measure unsupported-answer rate, successful handoff, explicit helpfulness, and repeated gaps; avoid treating “a policy was shown” as resolution. Then add authenticated roles, durable tenant-isolated storage, policy approval/audit history, real staff notification, retention controls, and broader safety evaluation. Test language accessibility and low-end mobile performance before adding ingestion or voice.
+Start with a small operator pilot and a held-out evaluation of real, de-identified parent questions. Measure unsupported-answer rate, successful handoff, explicit helpfulness, and repeated gaps; avoid treating “a policy was shown” as resolution. Then add authenticated roles, durable tenant-isolated storage, policy approval/audit history, an authenticated email queue with delivery/retry status, retention controls, and broader safety evaluation. Test language accessibility and low-end mobile performance before adding ingestion or voice.
 
 ## Structure
 
@@ -65,6 +67,7 @@ Start with a small operator pilot and a held-out evaluation of real, de-identifi
 - `src/lib/retrieval.ts` — model pin, coverage checks, selection thresholds
 - `src/lib/semantic.worker.ts` — local embedding inference and index invalidation
 - `src/lib/semantic.ts` — worker lifecycle, timeout, and fallback signaling
+- `src/lib/staff.ts` — opt-in reply requests, cancellation, simulated delivery, explicit FAQ drafting
 - `src/lib/storage.ts` — validated browser persistence and retention
 - `src/lib/data.ts` — seven fictional policies and labeled sample questions
 - `src/components/` — accessible dialog and policy editor

@@ -114,18 +114,26 @@ describe("safety routing before retrieval", () => {
 });
 
 describe("data minimization", () => {
-  it("discards details for recognized sensitive and urgent questions", () => {
+  it("preserves sensitive question wording so staff can respond", () => {
     const question = "My son has a fever, can he attend?";
-    expect(redactQuestion(question, safetyAnswer(question)!)).toBe(
-      "[Individual health question — details not retained]",
-    );
+    expect(redactQuestion(question)).toBe(question);
   });
   it("removes common email and phone patterns from other questions", () => {
     expect(
-      redactQuestion(
-        "Send hours to test@example.com or 415-555-0100",
-        unknownAnswer(),
-      ),
+      redactQuestion("Send hours to test@example.com or 415-555-0100"),
     ).toBe("Send hours to [email removed] or [number removed]");
   });
+});
+
+it.each([
+  "If my child needs assistance with eating lunch can I count on someone being there for her?",
+  "Can my child eat lunch at the center?",
+  "Do you grow flowers outside?",
+])("does not classify ordinary care as a medical decision: %s", (question) => {
+  expect(safetyAnswer(question)).toBeUndefined();
+});
+it("still routes feeding-tube care to a person", () => {
+  expect(
+    safetyAnswer("My child uses a feeding tube. Can you help?")?.status,
+  ).toBe("sensitive");
 });

@@ -22,17 +22,24 @@ export function eligiblePolicies(
   const topics = specificTopics.filter((pattern) =>
     pattern.test(normalize(question)),
   );
-  return policies.filter(
-    (policy) =>
+  const mealtimeSupport = (text: string) =>
+    /\b(help|assist\w*|support|supervis\w*)\b/.test(text) &&
+    /\b(eat\w*|feed\w*|meals?|mealtime|lunch)\b/.test(text);
+  return policies.filter((policy) => {
+    const content = normalize(
+      [policy.title, policy.answer, ...policy.questions].join(" "),
+    );
+    return (
       policy.published &&
-      topics.every((pattern) =>
-        pattern.test(
-          normalize(
-            [policy.title, policy.answer, ...policy.questions].join(" "),
-          ),
-        ),
-      ),
-  );
+      topics.every((pattern) => pattern.test(content)) &&
+      (!mealtimeSupport(normalize(question)) ||
+        [policy.title, policy.answer, ...policy.questions].some((part) =>
+          part
+            .split(/[.!?]/)
+            .some((sentence) => mealtimeSupport(normalize(sentence))),
+        ))
+    );
+  });
 }
 export function selectRelatedPolicy(
   matches: Match[],

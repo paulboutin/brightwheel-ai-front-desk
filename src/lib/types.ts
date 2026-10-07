@@ -16,6 +16,17 @@ export type Answer = {
   reason: string;
   engine: "policy" | "semantic" | "safety";
 };
+export type StaffReply = {
+  id: string;
+  text: string;
+  createdAt: string;
+  delivery: "simulated";
+};
+export type EmailFollowUp = {
+  email: string;
+  consentedAt: string;
+  status: "pending" | "simulated";
+};
 export type Entry = {
   id: string;
   question: string;
@@ -25,5 +36,8 @@ export type Entry = {
   review: "open" | "resolved";
   requested: boolean;
   sample?: boolean;
+  staffReplies?: StaffReply[];
+  emailFollowUp?: EmailFollowUp;
+  faqPolicyId?: string;
 };
 export type State = { schema: 1; policies: Policy[]; entries: Entry[] };

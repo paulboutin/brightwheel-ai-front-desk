@@ -26,7 +26,7 @@ export function safetyAnswer(question: string): Answer | undefined {
       engine: "safety",
     };
   if (
-    /custody|court order|restraining|abuse|neglect|incident|injur|diagnos|dose|dosage|medicat|tylenol|ibuprofen|medical advice|rash|my (balance|bill|account)|owe|refund|credit card|social security|ssn|password|another (child|parent)|other (child|parent)|phone number of|address of/.test(
+    /\b(custody|court order|restraining|abuse|neglect|incident|injur\w*|diagnos\w*|dose|dosage|medicat\w*|tylenol|ibuprofen|medical advice|rash|feeding tube|dysphagia|my (balance|bill|account)|owe|refund|credit card|social security|ssn|password|another (child|parent)|other (child|parent)|phone number of|address of)\b/.test(
       q,
     )
   )
@@ -37,7 +37,10 @@ export function safetyAnswer(question: string): Answer | undefined {
       engine: "safety",
     };
   if (
-    /(my (child|son|daughter|baby)|she |he ).*(sick|fever|vomit|temperature|allerg|eat|return|come in|attend)|can (i|we).*(bring|send).*(sick|fever)|is it safe/.test(
+    /\b(sick|ill|fever|vomit\w*|diarrhea|temperature|allerg\w*|symptoms?|contagious)\b/.test(
+      q,
+    ) &&
+    /\b(my (child|son|daughter|baby)|she|he|is it safe)\b|can (i|we).*(bring|send)/.test(
       q,
     )
   )
@@ -108,14 +111,14 @@ export function keywordCandidates(
 export function unknownAnswer(): Answer {
   return {
     status: "unanswered",
-    text: "I don’t have a published answer for that yet. I’d rather leave it with the front office than guess. You can add this question to the demo staff queue, or browse the center’s policies below.",
+    text: "I don’t have a published answer for that yet. I’d rather leave it with the front office than guess. You can request an email reply from staff when they’re available, or browse the center’s policies below. Email delivery is simulated in this demo.",
     reason: "No sufficiently relevant published policy",
     engine: "policy",
   };
 }
-export function redactQuestion(question: string, answer: Answer): string {
-  if (answer.status === "sensitive" || answer.status === "urgent")
-    return `[${answer.reason} — details not retained]`;
+// Preserve the question for human review, regardless of its routing category.
+// This demo is browser-local; these limited patterns are not a privacy guarantee.
+export function redactQuestion(question: string): string {
   return question
     .replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi, "[email removed]")
     .replace(/(?:\+?\d[\d ()-]{7,}\d)/g, "[number removed]")
