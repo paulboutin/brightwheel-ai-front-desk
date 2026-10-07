@@ -50,4 +50,5 @@ SimpleDocTemplate(str(OUTPUT), pagesize=letter, rightMargin=48, leftMargin=48, t
                   title='Little Grove AI Front Desk - Decisions and Tradeoffs', author='Paul Boutin').build(story, onFirstPage=footer, onLaterPages=footer)
 pdf = PdfReader(str(OUTPUT))
 assert len(pdf.pages) == 1, f'Expected one page, got {len(pdf.pages)}'
+(ROOT / 'public/explanation.pdf').write_bytes(OUTPUT.read_bytes())
 print(f'Created {OUTPUT}; verified one page.')

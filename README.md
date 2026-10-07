@@ -2,7 +2,7 @@
 
 A mobile-friendly prototype for a fictional childcare center, built for the brightwheel engineering manager exercise. Parents find staff-approved policy answers; staff see unanswered questions, publish improvements, and test the next answer. This is an independent exercise, not an official brightwheel product.
 
-[One-page explanation](output/pdf/little-grove-explanation.pdf)
+**[Open the hosted prototype](https://brightwheel-ai-front-desk.onrender.com)** · [One-page explanation](output/pdf/little-grove-explanation.pdf)
 
 ## Try the complete loop
 
