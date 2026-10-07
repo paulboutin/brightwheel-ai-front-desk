@@ -2,7 +2,7 @@
 
 A mobile-friendly **public AI front desk** for a fictional childcare center, built for the brightwheel engineering manager exercise. Parents find staff-approved policy answers; staff see unanswered questions, publish improvements, and test the next answer. This is an independent exercise, not an official brightwheel product.
 
-**[Open the hosted prototype](https://brightwheel-ai-front-desk.onrender.com)** · [One-page explanation](output/pdf/little-grove-explanation.pdf)
+**[Open the hosted prototype](https://brightwheel-ai-front-desk.onrender.com)** · **[Reviewer walkthrough](REVIEWER_GUIDE.md)** · [One-page explanation](output/pdf/little-grove-explanation.pdf)
 
 ## Project outline: what this prototype represents
 
@@ -17,6 +17,8 @@ A mobile-friendly **public AI front desk** for a fictional childcare center, bui
 This scope demonstrates policy grounding and the operator improvement loop while leaving authenticated child-specific communication to an existing system. Production integration would require verified family/child relationships, staff authorization, tenant isolation, retention controls, and auditable message delivery. A secure staff screen alone would not authenticate a public sender.
 
 ## Try the complete loop
+
+**Start with the [5–7 minute reviewer walkthrough](REVIEWER_GUIDE.md).** It includes two tested questions, a copyable fictional staff response, the exact publication steps, and a differently worded follow-up that demonstrates automatic search-index refresh. The brief tour below covers additional features.
 
 1. In **For parents**, select **Browse Hours & drop-off** to open the chat panel. Open the citation to inspect the policy version.
 2. Ask **“Do I need to put together a packed lunch each morning?”** to exercise real local AI retrieval. The first model download takes longer; later searches reuse it.

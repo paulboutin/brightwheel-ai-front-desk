@@ -1422,6 +1422,17 @@ export default function App() {
               a brightwheel engineering exercise. It is not a brightwheel
               product or a real childcare service.
             </p>
+            <p>
+              <a
+                href="https://github.com/paulboutin/brightwheel-ai-front-desk/blob/main/REVIEWER_GUIDE.md"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Reviewer walkthrough: try the complete improvement loop
+              </a>{" "}
+              (opens in a new tab). Two questions, a sample staff reply, and
+              step-by-step instructions for publishing a reusable policy.
+            </p>
             <h3>Policies first. People when it matters.</h3>
             <p>
               A small AI model finds related policies on your device. Each
