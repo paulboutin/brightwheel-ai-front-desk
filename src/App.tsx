@@ -643,7 +643,10 @@ export default function App() {
             <div>
               <span>Questions in this workspace</span>
               <strong>{state.entries.length}</strong>
-              <small>Includes 3 sample questions</small>
+              <small>
+                Includes {state.entries.filter((entry) => entry.sample).length}{" "}
+                sample questions
+              </small>
             </div>
             <div className="attention">
               <span>Ready for a closer look</span>

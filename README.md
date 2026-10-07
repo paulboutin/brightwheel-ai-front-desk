@@ -2,6 +2,8 @@
 
 A mobile-friendly prototype for a fictional childcare center, built for the brightwheel engineering manager exercise. Parents find staff-approved policy answers; staff see unanswered questions, publish improvements, and test the next answer. This is an independent exercise, not an official brightwheel product.
 
+[One-page explanation](output/pdf/little-grove-explanation.pdf)
+
 ## Try the complete loop
 
 1. In **For parents**, select **Hours & drop-off**. Open the citation to inspect the policy version.
@@ -23,12 +25,12 @@ npm run dev
 ```
 
 ```sh
-npm run check     # lint, 59 unit cases, TypeScript, production build
+npm run check     # lint, 63 unit cases, TypeScript, production build
 npm run eval:ai   # 15 real-model retrieval cases; downloads the pinned model
 npm run preview  # serve the production build locally
 ```
 
-No API keys or environment variables are needed. Dependency versions are locked. Render builds with `npm ci && npm run check` and serves `dist/`. GitHub Actions runs the same checks on pushes and pull requests. `render.yaml` records the service configuration; the live service belongs to the separate **Brightwheel AI Front Desk / Prototype** project environment.
+No API keys or environment variables are needed. Dependency versions are locked. Render builds with `npm ci && npm run check` and serves `dist/`. GitHub Actions runs the same checks on pushes and pull requests. The initial Render service uses the public repository URL, so deploys are manual until the new repository is added to the existing GitHub/Render connection. `render.yaml` records the service configuration; the live service belongs to the separate **Brightwheel AI Front Desk / Prototype** project environment.
 
 ## AI and grounding
 
